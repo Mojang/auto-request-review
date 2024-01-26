@@ -126,6 +126,28 @@ describe('reviewer', function() {
       };
       expect(identify_reviewers_by_changed_files({ config: config_with_last_files_match_only, changed_files })).to.have.members([ 'mario', 'someone-specific' ]);
     });
+
+    it('assigns aliases to different files with custom groups - `last_files_match_only` `true` (CODEWONERS-compatible)', function() {
+      const changed_files = [ 'backend/some-specific-file', 'frontend/path/to/file' ];
+      const config_with_last_files_match_only = {
+        ...config,
+        options: {
+          last_files_match_only: true,
+        },
+      };
+      expect(identify_reviewers_by_changed_files({ config: config_with_last_files_match_only, changed_files })).to.have.members([ 'mario', 'someone-specific', 'princess-peach', 'toad' ]);
+    });
+
+    it('assigns aliases to different files with aliases - `last_files_match_only` `true` (CODEWONERS-compatible)', function() {
+      const changed_files = [ 'backend/some-specific-file', 'super-star' ];
+      const config_with_last_files_match_only = {
+        ...config,
+        options: {
+          last_files_match_only: true,
+        },
+      };
+      expect(identify_reviewers_by_changed_files({ config: config_with_last_files_match_only, changed_files })).to.have.members([ 'mario', 'someone-specific', 'luigi' ]);
+    });
   });
 
   describe('identify_reviewers_by_author()', function() {
