@@ -16215,18 +16215,19 @@ function identify_reviewers_by_changed_files({ config, changed_files, excludes =
     return [];
   }
 
-  const matching_reviewers = [];
+  const matching_reviewers = {};
 
   Object.entries(config.files).forEach(([ glob_pattern, reviewers ]) => {
-    if (changed_files.some((changed_file) => minimatch(changed_file, glob_pattern))) {
+    changed_files.filter((changed_file) => minimatch(changed_file, glob_pattern)).forEach((changed_file) => {
+      matching_reviewers[changed_file] ??= []
       if (last_files_match_only) {
-        matching_reviewers.length = 0; // clear previous matches
+        matching_reviewers[changed_file].length = 0; // clear previous matches
       }
-      matching_reviewers.push(...reviewers);
-    }
+      matching_reviewers[changed_file].push(...reviewers);
+    });
   });
 
-  const individuals = replace_groups_with_individuals({ reviewers: matching_reviewers, config });
+  const individuals = replace_groups_with_individuals({ reviewers: Object.values(matching_reviewers).flat(), config });
 
   // Depue and filter the results
   return [ ...new Set(individuals) ].filter((reviewer) => !excludes.includes(reviewer));
