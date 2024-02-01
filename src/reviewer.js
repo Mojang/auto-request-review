@@ -52,7 +52,7 @@ function identify_reviewers_by_changed_files({ config, changed_files, excludes =
 
   Object.entries(config.files).forEach(([ glob_pattern, reviewers ]) => {
     changed_files.filter((changed_file) => minimatch(changed_file, glob_pattern)).forEach((changed_file) => {
-      matching_reviewers[changed_file] ??= []
+      matching_reviewers[changed_file] = matching_reviewers[changed_file] ?? [];
       if (last_files_match_only) {
         matching_reviewers[changed_file].length = 0; // clear previous matches
       }
