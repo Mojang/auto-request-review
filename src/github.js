@@ -96,6 +96,27 @@ async function fetch_changed_files() {
   return changed_files;
 }
 
+async function fetch_current_reviewers() {
+  const context = get_context();
+  const octokit = get_octokit();
+
+  const current_reviewers = [];
+
+  // API docs
+  // Generated octokit methods: https://github.com/octokit/plugin-rest-endpoint-methods.js/blob/main/src/generated/endpoints.ts
+  // Available Rest APIs: https://docs.github.com/en/rest/pulls/review-requests?apiVersion=2022-11-28#get-all-requested-reviewers-for-a-pull-request
+  const { data: response_body } = await octokit.pulls.listRequestedReviewers({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    pull_number: context.payload.pull_request.number
+  });
+
+  current_reviewers.push(...response_body['users'].map((user) => user.login));
+  current_reviewers.push(...response_body['teams'].map((team) => "team:".concat(team.slug)));
+
+  return current_reviewers;
+}
+
 async function assign_reviewers(reviewers) {
   const context = get_context();
   const octokit = get_octokit();
@@ -156,6 +177,7 @@ module.exports = {
   get_pull_request,
   fetch_config,
   fetch_changed_files,
+  fetch_current_reviewers,
   assign_reviewers,
   clear_cache,
 };

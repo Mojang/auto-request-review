@@ -14,6 +14,7 @@ describe('index', function() {
       sinon.stub(github, 'get_pull_request');
       sinon.stub(github, 'fetch_config');
       sinon.stub(github, 'fetch_changed_files');
+      sinon.stub(github, 'fetch_current_reviewers');
       sinon.stub(github, 'assign_reviewers');
     });
 
@@ -21,6 +22,7 @@ describe('index', function() {
       github.get_pull_request.restore();
       github.fetch_config.restore();
       github.fetch_changed_files.restore();
+      github.fetch_current_reviewers.restore();
       github.assign_reviewers.restore();
     });
 
@@ -48,6 +50,9 @@ describe('index', function() {
 
       const changed_fiels = [ 'path/to/file.js' ];
       github.fetch_changed_files.returns(changed_fiels);
+
+      const current_reviewers = [];
+      github.fetch_current_reviewers.returns(current_reviewers);
 
       await run();
 
@@ -80,6 +85,9 @@ describe('index', function() {
       const changed_fiels = [];
       github.fetch_changed_files.returns(changed_fiels);
 
+      const current_reviewers = [];
+      github.fetch_current_reviewers.returns(current_reviewers);
+
       await run();
 
       expect(github.assign_reviewers.calledOnce).to.be.true;
@@ -107,6 +115,9 @@ describe('index', function() {
       const changed_fiels = [ 'path/to/file.js' ];
       github.fetch_changed_files.returns(changed_fiels);
 
+      const current_reviewers = [];
+      github.fetch_current_reviewers.returns(current_reviewers);
+
       await run();
 
       expect(github.assign_reviewers.calledOnce).to.be.false;
@@ -132,6 +143,9 @@ describe('index', function() {
 
       const changed_fiels = [ 'path/to/file.js' ];
       github.fetch_changed_files.returns(changed_fiels);
+
+      const current_reviewers = [];
+      github.fetch_current_reviewers.returns(current_reviewers);
 
       await run();
 
@@ -162,6 +176,9 @@ describe('index', function() {
       const changed_fiels = [ 'path/to/file.py' ];
       github.fetch_changed_files.returns(changed_fiels);
 
+      const current_reviewers = [];
+      github.fetch_current_reviewers.returns(current_reviewers);
+
       await run();
 
       expect(github.assign_reviewers.calledOnce).to.be.false;
@@ -191,6 +208,9 @@ describe('index', function() {
 
       const changed_fiels = [ 'path/to/file.py' ];
       github.fetch_changed_files.returns(changed_fiels);
+
+      const current_reviewers = [];
+      github.fetch_current_reviewers.returns(current_reviewers);
 
       await run();
 
@@ -223,6 +243,9 @@ describe('index', function() {
       const changed_fiels = [];
       github.fetch_changed_files.returns(changed_fiels);
 
+      const current_reviewers = [];
+      github.fetch_current_reviewers.returns(current_reviewers);
+
       await run();
 
       expect(github.assign_reviewers.calledOnce).to.be.true;
@@ -254,6 +277,9 @@ describe('index', function() {
       const changed_fiels = [];
       github.fetch_changed_files.returns(changed_fiels);
 
+      const current_reviewers = [];
+      github.fetch_current_reviewers.returns(current_reviewers);
+
       await run();
 
       expect(github.assign_reviewers.calledOnce).to.be.true;
@@ -282,6 +308,9 @@ describe('index', function() {
 
       const changed_fiels = [];
       github.fetch_changed_files.returns(changed_fiels);
+
+      const current_reviewers = [];
+      github.fetch_current_reviewers.returns(current_reviewers);
 
       await run();
 
