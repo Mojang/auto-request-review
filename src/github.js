@@ -108,11 +108,11 @@ async function fetch_current_reviewers() {
   const { data: response_body } = await octokit.pulls.listRequestedReviewers({
     owner: context.repo.owner,
     repo: context.repo.repo,
-    pull_number: context.payload.pull_request.number
+    pull_number: context.payload.pull_request.number,
   });
 
-  current_reviewers.push(...response_body['users'].map((user) => user.login));
-  current_reviewers.push(...response_body['teams'].map((team) => "team:".concat(team.slug)));
+  current_reviewers.push(...response_body.users.map((user) => user.login));
+  current_reviewers.push(...response_body.teams.map((team) => 'team:'.concat(team.slug)));
 
   return current_reviewers;
 }

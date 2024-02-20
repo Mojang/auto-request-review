@@ -85,7 +85,7 @@ describe('index', function() {
       const changed_files = [ 'path/to/file.js' ];
       github.fetch_changed_files.returns(changed_files);
 
-      const current_reviewers = ['princess-peach'];
+      const current_reviewers = [ 'princess-peach' ];
       github.fetch_current_reviewers.returns(current_reviewers);
 
       await run();
@@ -119,7 +119,7 @@ describe('index', function() {
       const changed_files = [ 'path/to/file.js', 'path/to/file.rb' ];
       github.fetch_changed_files.returns(changed_files);
 
-      const current_reviewers = ['team:bowser-and-co'];
+      const current_reviewers = [ 'team:bowser-and-co' ];
       github.fetch_current_reviewers.returns(current_reviewers);
 
       await run();
@@ -153,7 +153,7 @@ describe('index', function() {
       const changed_files = [ 'path/to/file.js' ];
       github.fetch_changed_files.returns(changed_files);
 
-      const current_reviewers = ['princess-peach', 'mario'];
+      const current_reviewers = [ 'princess-peach', 'mario' ];
       github.fetch_current_reviewers.returns(current_reviewers);
 
       await run();

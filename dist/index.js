@@ -16013,11 +16013,11 @@ async function fetch_current_reviewers() {
   const { data: response_body } = await octokit.pulls.listRequestedReviewers({
     owner: context.repo.owner,
     repo: context.repo.repo,
-    pull_number: context.payload.pull_request.number
+    pull_number: context.payload.pull_request.number,
   });
 
-  current_reviewers.push(...response_body['users'].map((user) => user.login));
-  current_reviewers.push(...response_body['teams'].map((team) => "team:".concat(team.slug)));
+  current_reviewers.push(...response_body.users.map((user) => user.login));
+  current_reviewers.push(...response_body.teams.map((team) => 'team:'.concat(team.slug)));
 
   return current_reviewers;
 }
@@ -16140,7 +16140,7 @@ async function run() {
   core.info('Fetching changed files in the pull request');
   const changed_files = await github.fetch_changed_files();
 
-  core.info('Fetching currently requested reviewers')
+  core.info('Fetching currently requested reviewers');
   const current_reviewers = await github.fetch_current_reviewers();
   core.info(`Already in review: ${current_reviewers.join(', ')}`);
 
@@ -16168,7 +16168,7 @@ async function run() {
     reviewers.push(...default_reviewers);
   }
 
-  core.info(`Possible Reviewers ${reviewers.join(', ')}, prepare filtering out already requested reviewers`)
+  core.info(`Possible Reviewers ${reviewers.join(', ')}, prepare filtering out already requested reviewers`);
   reviewers = reviewers.filter((reviewer) => !current_reviewers.includes(reviewer));
 
   core.info('Randomly picking reviewers if the number of reviewers is set');

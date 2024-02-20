@@ -140,9 +140,9 @@ describe('github', function() {
       stub.returns({
         data: {
           users: [
-            { login: 'super/mario/64' }
+            { login: 'super/mario/64' },
           ],
-          teams: []
+          teams: [],
         },
       });
       const expected = [ 'super/mario/64' ];
@@ -155,8 +155,8 @@ describe('github', function() {
         data: {
           users: [ ],
           teams: [
-            { slug: 'super_marios'}
-          ]
+            { slug: 'super_marios' },
+          ],
         },
       });
       const expected = [ 'team:super_marios' ];
@@ -167,15 +167,15 @@ describe('github', function() {
     it('fetch current reviewers - combined users and teams', async function() {
       stub.returns({
         data: {
-          users: [ 
-            { login: 'bowser'},
+          users: [
+            { login: 'bowser' },
             { login: 'peach' },
             { login: 'luigi' },
           ],
           teams: [
-            { slug: 'super_marios'},
-            { slug: 'toads'},
-          ]
+            { slug: 'super_marios' },
+            { slug: 'toads' },
+          ],
         },
       });
       const expected = [ 'bowser', 'peach', 'luigi', 'team:super_marios', 'team:toads' ];
