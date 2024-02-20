@@ -12,6 +12,7 @@ const {
   get_pull_request,
   fetch_config,
   fetch_changed_files,
+  fetch_current_reviewers,
   assign_reviewers,
   clear_cache,
 } = require('../src/github');
@@ -120,6 +121,66 @@ describe('github', function() {
 
       const changed_files = await fetch_changed_files();
       expect(changed_files).to.have.members(filenames);
+    });
+  });
+
+  describe('fetch_current_reviewers()', function() {
+    const stub = sinon.stub();
+    const octokit = {
+      pulls: {
+        listRequestedReviewers: stub,
+      },
+    };
+
+    beforeEach(function() {
+      github.getOctokit.returns(octokit);
+    });
+
+    it('fetch current reviewers - user only', async function() {
+      stub.returns({
+        data: {
+          users: [
+            { login: 'super/mario/64' }
+          ],
+          teams: []
+        },
+      });
+      const expected = [ 'super/mario/64' ];
+      const actual = await fetch_current_reviewers();
+      expect(actual).to.deep.equal(expected);
+    });
+
+    it('fetch current reviewers - team only', async function() {
+      stub.returns({
+        data: {
+          users: [ ],
+          teams: [
+            { slug: 'super_marios'}
+          ]
+        },
+      });
+      const expected = [ 'team:super_marios' ];
+      const actual = await fetch_current_reviewers();
+      expect(actual).to.deep.equal(expected);
+    });
+
+    it('fetch current reviewers - combined users and teams', async function() {
+      stub.returns({
+        data: {
+          users: [ 
+            { login: 'bowser'},
+            { login: 'peach' },
+            { login: 'luigi' },
+          ],
+          teams: [
+            { slug: 'super_marios'},
+            { slug: 'toads'},
+          ]
+        },
+      });
+      const expected = [ 'bowser', 'peach', 'luigi', 'team:super_marios', 'team:toads' ];
+      const actual = await fetch_current_reviewers();
+      expect(actual).to.deep.equal(expected);
     });
   });
 
