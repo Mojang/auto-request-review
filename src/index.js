@@ -72,6 +72,9 @@ async function run() {
     reviewers.push(...default_reviewers);
   }
 
+  core.info(`Possible Reviewers ${reviewers.join(', ')}, prepare filtering out already requested reviewers`)
+  reviewers = reviewers.filter((reviewer) => !current_reviewers.includes(reviewer));
+
   core.info('Randomly picking reviewers if the number of reviewers is set');
   reviewers = randomly_pick_reviewers({ reviewers, config });
 
