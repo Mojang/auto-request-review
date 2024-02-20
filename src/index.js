@@ -78,8 +78,12 @@ async function run() {
   core.info('Randomly picking reviewers if the number of reviewers is set');
   reviewers = randomly_pick_reviewers({ reviewers, config });
 
-  core.info(`Requesting review to ${reviewers.join(', ')}`);
-  await github.assign_reviewers(reviewers);
+  if (reviewers.length) {
+    core.info(`Requesting review to ${reviewers.join(', ')}`);
+    await github.assign_reviewers(reviewers);
+  } else {
+    core.info('No new reviewers to assign to PR');
+  }
 }
 
 module.exports = {
