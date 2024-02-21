@@ -44,6 +44,10 @@ async function run() {
   core.info('Fetching changed files in the pull request');
   const changed_files = await github.fetch_changed_files();
 
+  core.info('Fetching currently requested reviewers');
+  const current_reviewers = await github.fetch_current_reviewers();
+  core.info(`Already in review: ${current_reviewers.join(', ')}`);
+
   core.info('Identifying reviewers based on the changed files');
   const reviewers_based_on_files = identify_reviewers_by_changed_files({ config, changed_files, excludes: [ author ] });
 
@@ -68,11 +72,18 @@ async function run() {
     reviewers.push(...default_reviewers);
   }
 
+  core.info(`Possible Reviewers ${reviewers.join(', ')}, prepare filtering out already requested reviewers`);
+  reviewers = reviewers.filter((reviewer) => !current_reviewers.includes(reviewer));
+
   core.info('Randomly picking reviewers if the number of reviewers is set');
   reviewers = randomly_pick_reviewers({ reviewers, config });
 
-  core.info(`Requesting review to ${reviewers.join(', ')}`);
-  await github.assign_reviewers(reviewers);
+  if (reviewers.length > 0) {
+    core.info(`Requesting review to ${reviewers.join(', ')}`);
+    await github.assign_reviewers(reviewers);
+  } else {
+    core.info('No new reviewers to assign to PR');
+  }
 }
 
 module.exports = {
