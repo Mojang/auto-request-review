@@ -136,7 +136,7 @@ describe('github', function() {
       github.getOctokit.returns(octokit);
     });
 
-    it('fetch current reviewers - user only', async function() {
+    it('fetches current reviewers - user only', async function() {
       stub.returns({
         data: {
           users: [
