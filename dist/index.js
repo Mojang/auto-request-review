@@ -16174,7 +16174,7 @@ async function run() {
   core.info('Randomly picking reviewers if the number of reviewers is set');
   reviewers = randomly_pick_reviewers({ reviewers, config });
 
-  if (reviewers.length) {
+  if (reviewers.length > 0) {
     core.info(`Requesting review to ${reviewers.join(', ')}`);
     await github.assign_reviewers(reviewers);
   } else {
