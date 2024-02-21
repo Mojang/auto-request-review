@@ -150,7 +150,7 @@ describe('github', function() {
       expect(actual).to.deep.equal(expected);
     });
 
-    it('fetch current reviewers - team only', async function() {
+    it('fetches current reviewers - team only', async function() {
       stub.returns({
         data: {
           users: [ ],
@@ -164,7 +164,7 @@ describe('github', function() {
       expect(actual).to.deep.equal(expected);
     });
 
-    it('fetch current reviewers - combined users and teams', async function() {
+    it('fetches current reviewers - combined users and teams', async function() {
       stub.returns({
         data: {
           users: [
