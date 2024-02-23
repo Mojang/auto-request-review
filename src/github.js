@@ -100,21 +100,32 @@ async function fetch_reviewers() {
   const context = get_context();
   const octokit = get_octokit();
 
-  const current_reviewers = [];
+  const reviewers = [];
+  const per_page = 100;
 
   // API docs
-  // Generated octokit methods: https://github.com/octokit/plugin-rest-endpoint-methods.js/blob/main/src/generated/endpoints.ts
-  // Available Rest APIs: https://docs.github.com/en/rest/pulls/review-requests?apiVersion=2022-11-28#get-all-requested-reviewers-for-a-pull-request
-  const { data: response_body } = await octokit.pulls.listRequestedReviewers({
+  // Timeline Rest APIs: https://docs.github.com/en/rest/issues/timeline?apiVersion=2022-11-28#about-timeline-events
+  // Pagination: https://docs.github.com/en/rest/using-the-rest-api/using-pagination-in-the-rest-api?apiVersion=2022-11-28#example-using-the-octokitjs-pagination-method
+  const { data: response_body } = await octokit.paginate('GET /repos/{owner}/{repo}/issues/{issue_number}/timeline', {
     owner: context.repo.owner,
     repo: context.repo.repo,
-    pull_number: context.payload.pull_request.number,
+    issue_number: context.payload.pull_request.number,
+    per_page,
   });
 
-  current_reviewers.push(...response_body.users.map((user) => user.login));
-  current_reviewers.push(...response_body.teams.map((team) => 'team:'.concat(team.slug)));
+  reviewers.push(...response_body.filter((timeline_event) => timeline_event.event === 'review_requested').map((review) => {
+    if (Object.prototype.hasOwnProperty.call(review, 'requested_team')) {
+      return 'team:'.concat(review.requested_team.slug);
+    } else if (Object.prototype.hasOwnProperty.call(review, 'requested_reviewer')) {
+      return review.requested_reviewer.login;
+    }
 
-  return current_reviewers;
+    core.debug('Failed to find requested team or requested reviewer');
+    core.debug(JSON.stringify(review));
+    return '';
+  }).filter((reviewer) => reviewer.length));
+
+  return reviewers;
 }
 
 async function assign_reviewers(reviewers) {
