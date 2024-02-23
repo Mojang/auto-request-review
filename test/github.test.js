@@ -12,7 +12,7 @@ const {
   get_pull_request,
   fetch_config,
   fetch_changed_files,
-  fetch_current_reviewers,
+  fetch_reviewers,
   assign_reviewers,
   clear_cache,
 } = require('../src/github');
@@ -124,7 +124,7 @@ describe('github', function() {
     });
   });
 
-  describe('fetch_current_reviewers()', function() {
+  describe('fetch_reviewers()', function() {
     const stub = sinon.stub();
     const octokit = {
       pulls: {
@@ -146,7 +146,7 @@ describe('github', function() {
         },
       });
       const expected = [ 'super/mario/64' ];
-      const actual = await fetch_current_reviewers();
+      const actual = await fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
 
@@ -160,7 +160,7 @@ describe('github', function() {
         },
       });
       const expected = [ 'team:super_marios' ];
-      const actual = await fetch_current_reviewers();
+      const actual = await fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
 
@@ -179,7 +179,7 @@ describe('github', function() {
         },
       });
       const expected = [ 'bowser', 'peach', 'luigi', 'team:super_marios', 'team:toads' ];
-      const actual = await fetch_current_reviewers();
+      const actual = await fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
   });

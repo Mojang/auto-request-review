@@ -96,7 +96,7 @@ async function fetch_changed_files() {
   return changed_files;
 }
 
-async function fetch_current_reviewers() {
+async function fetch_reviewers() {
   const context = get_context();
   const octokit = get_octokit();
 
@@ -177,7 +177,7 @@ module.exports = {
   get_pull_request,
   fetch_config,
   fetch_changed_files,
-  fetch_current_reviewers,
+  fetch_reviewers,
   assign_reviewers,
   clear_cache,
 };

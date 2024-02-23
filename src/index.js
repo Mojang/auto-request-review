@@ -45,7 +45,7 @@ async function run() {
   const changed_files = await github.fetch_changed_files();
 
   core.info('Fetching currently requested reviewers');
-  const current_reviewers = await github.fetch_current_reviewers();
+  const current_reviewers = await github.fetch_reviewers();
   core.info(`Already in review: ${current_reviewers.join(', ')}`);
 
   core.info('Identifying reviewers based on the changed files');
