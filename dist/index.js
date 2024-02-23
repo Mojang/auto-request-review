@@ -16015,7 +16015,7 @@ async function fetch_reviewers() {
     owner: context.repo.owner,
     repo: context.repo.repo,
     issue_number: context.payload.pull_request.number,
-    per_page,
+    per_page: per_page,
   });
 
   core.info(JSON.stringify(response_body));
