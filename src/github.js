@@ -113,7 +113,7 @@ async function fetch_reviewers() {
     per_page,
   });
 
-  core.log(JSON.stringify(response_body));
+  core.info(JSON.stringify(response_body));
 
   reviewers.push(...response_body.filter((timeline_event) => timeline_event.event === 'review_requested').map((review) => {
     if (Object.prototype.hasOwnProperty.call(review, 'requested_team')) {
