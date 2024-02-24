@@ -16006,17 +16006,16 @@ async function fetch_reviewers() {
   const octokit = get_octokit();
 
   const reviewers = [];
-  const per_page = 100;
+  // const per_page = 100;
 
   // API docs
   // Generated Octokit: https://github.com/octokit/plugin-rest-endpoint-methods.js/blob/main/src/generated/endpoints.ts
   // Timeline Rest APIs: https://docs.github.com/en/rest/issues/timeline?apiVersion=2022-11-28#about-timeline-events
   // Pagination: https://docs.github.com/en/rest/using-the-rest-api/using-pagination-in-the-rest-api?apiVersion=2022-11-28#example-using-the-octokitjs-pagination-method
-  const { data: response_body } = await octokit.paginate("GET /repos/{owner}/{repo}/issues/{issue_number}/timeline", {
+  const { data: response_body } = await octokit.paginate('GET /repos/{owner}/{repo}/issues/{issue_number}/timeline', {
     owner: context.repo.owner,
     repo: context.repo.repo,
     issue_number: context.payload.pull_request.number,
-    per_page: per_page,
   });
 
   reviewers.push(...response_body.filter((timeline_event) => timeline_event.event === 'review_requested').map((review) => {
