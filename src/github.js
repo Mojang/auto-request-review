@@ -103,9 +103,8 @@ async function fetch_reviewers() {
   const reviewers = [];
   const per_page = 100;
 
-  if (Object.prototype.hasOwnProperty.call(octokit, 'paginate')) {
-    core.info('found method');
-  }
+  core.info(octokit.rest.issues.listEventsForTimeline);
+  core.info(octokit.issues.listEventsForTimeline);
 
   // API docs
   // Generated Octokit: https://github.com/octokit/plugin-rest-endpoint-methods.js/blob/main/src/generated/endpoints.ts
