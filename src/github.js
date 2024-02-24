@@ -101,21 +101,22 @@ async function fetch_reviewers() {
   const octokit = get_octokit();
 
   const reviewers = [];
-  // const per_page = 100;
+  const per_page = 100;
+
+  if (Object.prototype.hasOwnProperty.call(octokit, 'paginate')) {
+    core.info('found method');
+  }
 
   // API docs
   // Generated Octokit: https://github.com/octokit/plugin-rest-endpoint-methods.js/blob/main/src/generated/endpoints.ts
   // Timeline Rest APIs: https://docs.github.com/en/rest/issues/timeline?apiVersion=2022-11-28#about-timeline-events
   // Pagination: https://docs.github.com/en/rest/using-the-rest-api/using-pagination-in-the-rest-api?apiVersion=2022-11-28#example-using-the-octokitjs-pagination-method
-  // const { data: response_body } = await octokit.paginate(octokit.issues.listEventsForTimeline, {
-    const { data: response_body } = await octokit.issues.listEventsForTimeline({
+  const { data: response_body } = await octokit.paginate(octokit.issues.listEventsForTimeline, {
     owner: context.repo.owner,
     repo: context.repo.repo,
     issue_number: context.payload.pull_request.number,
-    // per_page: per_page,
+    per_page: per_page,
   });
-
-  core.info(JSON.stringify(response_body));
 
   reviewers.push(...response_body.filter((timeline_event) => timeline_event.event === 'review_requested').map((review) => {
     if (Object.prototype.hasOwnProperty.call(review, 'requested_team')) {
