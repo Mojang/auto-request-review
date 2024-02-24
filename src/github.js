@@ -104,7 +104,7 @@ async function fetch_reviewers() {
   const per_page = 100;
 
   core.info(octokit.issues.listEventsForTimeline);
-  core.info('GET /repos/{owner}/{repo}/issues/{issue_number}/timeline');
+  core.info(octokit.paginate);
 
   // API docs
   // Generated Octokit: https://github.com/octokit/plugin-rest-endpoint-methods.js/blob/main/src/generated/endpoints.ts
