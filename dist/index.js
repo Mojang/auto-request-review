@@ -16097,7 +16097,7 @@ const github_utils = __nccwpck_require__(3030);
 const partition = __nccwpck_require__(2539);
 const yaml = __nccwpck_require__(4083);
 const { LOCAL_FILE_MISSING } = __nccwpck_require__(4438);
-const { paginateGraphql } = __nccwpck_require__(8942);
+const { paginateGraphql } = __nccwpck_require__(5952);
 
 class PullRequest {
   // ref: https://developer.github.com/v3/pulls/#get-a-pull-request
@@ -16607,10 +16607,10 @@ module.exports = {
 
 /***/ }),
 
-/***/ 8942:
+/***/ 5952:
 /***/ ((module) => {
 
-module.exports = eval("require")("./@octokit/plugin-paginate-graphql");
+module.exports = eval("require")("/@octokit/plugin-paginate-graphql");
 
 
 /***/ }),
