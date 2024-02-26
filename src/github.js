@@ -114,7 +114,7 @@ async function fetch_reviewers() {
     query paginate($cursor: String, $repo: String!, $owner: String!, $number: Int!, $per_page: Int!) {
       repository(owner: $owner, name: $repo) {
           pullRequest(number: $number) {
-              timelineItems(first: $per_page, after: $cursor, itemTypes: REVIEW_REQUESTED_EVENT) {
+              timelineItems(first: $per_page, after: $cursor) {
                   nodes {
                       ... on ReviewRequestedEvent {
                           requestedReviewer {
@@ -142,13 +142,14 @@ async function fetch_reviewers() {
       per_page: per_page,
     }
   );
-  // {"requestedReviewer":{"slug":"build-team"}}
-  // {"requestedReviewer":{"login":"Warwolt"}}
-  response?.repository?.pullRequest?.timelineItems?.nodes?.map((reviewer) => {
-    const name = Object.prototype.hasOwnProperty.call(reviewer?.requestedReviewer, 'slug') ? 'team:'.concat(reviewer?.requestedReviewer.slug) : reviewer?.requestedReviewer?.login;
-    core.info(`Name: ${name}`);
-    return name;
-  });
+  reviewers.push(...(response?.repository?.pullRequest?.timelineItems?.nodes || {}).map((reviewer) => {
+    if (Object.prototype.hasOwnProperty.call(reviewer?.requestedReviewer, 'slug')) {
+      return 'team:'.concat(reviewer?.requestedReviewer.slug);
+    }
+    return reviewer?.requestedReviewer?.login;
+  }));
+
+  core.info(`reviewers: ${reviewers.join(', ')}`);
 
   // API docs
   // Generated Octokit: https://github.com/octokit/plugin-rest-endpoint-methods.js/blob/main/src/generated/endpoints.ts
