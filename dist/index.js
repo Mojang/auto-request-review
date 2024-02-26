@@ -16455,7 +16455,7 @@ async function fetch_reviewers() {
     if (Object.prototype.hasOwnProperty.call(reviewer?.requestedReviewer, 'slug')) {
       return 'team:'.concat(reviewer?.requestedReviewer.slug);
     }
-    return reviewer?.requestedReviewer?.login;
+    return reviewer?.requestedReviewer?.login || '';
   }));
 
   core.info(`reviewers: ${reviewers.join(', ')}`);
