@@ -114,7 +114,7 @@ async function fetch_reviewers() {
     query paginate($cursor: String, $repo: String!, $owner: String!, $number: Int!, $per_page: Int!) {
       repository(owner: $owner, name: $repo) {
           pullRequest(number: $number) {
-              timelineItems(first: $per_page, after: $cursor) {
+              timelineItems(first: $per_page, after: $cursor, itemTypes: REVIEW_REQUESTED_EVENT) {
                   nodes {
                       ... on ReviewRequestedEvent {
                           requestedReviewer {

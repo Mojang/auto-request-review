@@ -16423,7 +16423,7 @@ async function fetch_reviewers() {
     query paginate($cursor: String, $repo: String!, $owner: String!, $number: Int!, $per_page: Int!) {
       repository(owner: $owner, name: $repo) {
           pullRequest(number: $number) {
-              timelineItems(first: $per_page, after: $cursor) {
+              timelineItems(first: $per_page, after: $cursor, itemTypes: REVIEW_REQUESTED_EVENT) {
                   nodes {
                       ... on ReviewRequestedEvent {
                           requestedReviewer {
@@ -16583,7 +16583,7 @@ async function run() {
   core.info('Fetching changed files in the pull request');
   const changed_files = await github.fetch_changed_files();
 
-  core.info('Fetching currently requested reviewers');
+  core.info('Fetching previously requested reviewers');
   const current_reviewers = await github.fetch_reviewers();
   core.info(`Already in review: ${current_reviewers.join(', ')}`);
 
