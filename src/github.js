@@ -3,10 +3,12 @@
 const core = require('@actions/core');
 const fs = require('fs');
 const github = require('@actions/github');
-const github_utils = require('@actions/github/lib/utils');
 const partition = require('lodash/partition');
 const yaml = require('yaml');
 const { LOCAL_FILE_MISSING } = require('./constants');
+// Applying Additional Plugins to Octokit from Github
+// https://github.com/actions/toolkit/tree/main/packages/github#extending-the-octokit-instance
+const github_utils = require('@actions/github/lib/utils');
 const { paginateGraphql } = require('@octokit/plugin-paginate-graphql');
 
 class PullRequest {
@@ -118,12 +120,14 @@ async function fetch_reviewers() {
   // core.info('Paginate request format response');
   // core.info(JSON.stringify(response2));
 
+  // GraphQL Docs: https://docs.github.com/en/graphql/reference/unions#pullrequesttimelineitems
+  // Pagination: https://github.com/octokit/plugin-paginate-graphql.js/?tab=readme-ov-file#usage
   const response3 = await octokit.graphql.paginate(
     `
-    query paginate($endCursor: String, $repo: String!, $owner: String!, $number: Int!, $per_page: Int!) {
+    query paginate($cursor: String, $repo: String!, $owner: String!, $number: Int!, $per_page: Int!) {
       repository(owner: $owner, name: $repo) {
           pullRequest(number: $number) {
-              timelineItems(first: $per_page, after: $endCursor, itemTypes: REVIEW_REQUESTED_EVENT) {
+              timelineItems(first: $per_page, after: $cursor, itemTypes: REVIEW_REQUESTED_EVENT) {
                   nodes {
                       ... on ReviewRequestedEvent {
                           requestedReviewer {
@@ -216,6 +220,8 @@ function get_octokit() {
     return octokit_cache;
   }
 
+  // Applying Additional Plugins to Octokit from Github
+  // https://github.com/actions/toolkit/tree/main/packages/github#extending-the-octokit-instance
   const token = get_token();
   const octokitWithPlugin = github_utils.GitHub.plugin(paginateGraphql);
   return octokit_cache = new octokitWithPlugin(github_utils.getOctokitOptions(token));
