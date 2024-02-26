@@ -105,7 +105,7 @@ async function fetch_reviewers() {
   const octokit = get_octokit();
 
   const reviewers = [];
-  const per_page = 1;
+  const per_page = 5;
 
   // API docs
   // Generated Octokit: https://github.com/octokit/plugin-rest-endpoint-methods.js/blob/main/src/generated/endpoints.ts
@@ -127,7 +127,7 @@ async function fetch_reviewers() {
     query paginate($cursor: String, $repo: String!, $owner: String!, $number: Int!, $per_page: Int!) {
       repository(owner: $owner, name: $repo) {
           pullRequest(number: $number) {
-              timelineItems(first: $per_page, after: $cursor, itemTypes: REVIEW_REQUESTED_EVENT) {
+              timelineItems(first: $per_page, after: $cursor) {
                   nodes {
                       ... on ReviewRequestedEvent {
                           requestedReviewer {
