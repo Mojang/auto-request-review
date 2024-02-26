@@ -16455,7 +16455,7 @@ async function fetch_reviewers() {
   // {"requestedReviewer":{"login":"Warwolt"}}
   response?.repository?.pullRequest?.timelineItems?.nodes?.map((reviewer) => {
     const name = Object.prototype.hasOwnProperty.call(reviewer?.requestedReviewer, 'slug') ? 'team:'.concat(reviewer?.requestedReviewer.slug) : reviewer?.requestedReviewer?.login;
-    core.info('Name: {name}');
+    core.info(`Name: ${name}`);
     return name;
   });
 
