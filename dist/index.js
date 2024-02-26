@@ -16451,8 +16451,13 @@ async function fetch_reviewers() {
       per_page: per_page,
     }
   );
-
-  response?.repository?.pullRequest?.timelineItems?.nodes?.map((reviewer) => core.info(JSON.stringify(reviewer)));
+  // {"requestedReviewer":{"slug":"build-team"}}
+  // {"requestedReviewer":{"login":"Warwolt"}}
+  response?.repository?.pullRequest?.timelineItems?.nodes?.map((reviewer) => {
+    const name = Object.prototype.hasOwnProperty.call(reviewer?.requestedReviewer, 'slug') ? 'team:'.concat(reviewer?.requestedReviewer.slug) : reviewer?.requestedReviewer?.login;
+    core.info('Name: {name}');
+    return name;
+  });
 
   // API docs
   // Generated Octokit: https://github.com/octokit/plugin-rest-endpoint-methods.js/blob/main/src/generated/endpoints.ts
