@@ -16451,7 +16451,9 @@ async function fetch_reviewers() {
       per_page: per_page,
     }
   );
+  core.info(JSON.stringify(response));
   reviewers.push(...response?.repository?.pullRequest?.timelineItems?.nodes?.map((reviewer) => {
+    core.info(JSON.stringify(reviewer));
     if (Object.prototype.hasOwnProperty.call(reviewer?.requestedReviewer, 'slug')) {
       return 'team:'.concat(reviewer?.requestedReviewer.slug);
     }
