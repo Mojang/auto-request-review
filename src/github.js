@@ -7,7 +7,8 @@ const github_utils = require('@actions/github/lib/utils');
 const partition = require('lodash/partition');
 const yaml = require('yaml');
 const { LOCAL_FILE_MISSING } = require('./constants');
-const { paginateGraphql } = require('/@octokit/plugin-paginate-graphql');
+// const { Octokit } = require('@octokit/core');
+// const { paginateGraphql } = require('@octokit/plugin-paginate-graphql');
 
 class PullRequest {
   // ref: https://developer.github.com/v3/pulls/#get-a-pull-request
