@@ -126,7 +126,7 @@ async function fetch_reviewers() {
   core.info('Paginate request format response');
   core.info(JSON.stringify(response2));
 
-  const response3 = await octokit.graphqlWithAuth.paginate(
+  const response3 = await octokit.graphql.paginate(
     `
     query paginate($endCursor: String, $repo: String!, $owner: String!, $number: Int!, $per_page: Int!) {
     repository(owner: $owner, name: $repo) {
