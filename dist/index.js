@@ -16093,9 +16093,11 @@ module.exports = {
 const core = __nccwpck_require__(2186);
 const fs = __nccwpck_require__(7147);
 const github = __nccwpck_require__(5438);
+const github_utils = __nccwpck_require__(3030);
 const partition = __nccwpck_require__(2539);
 const yaml = __nccwpck_require__(4083);
 const { LOCAL_FILE_MISSING } = __nccwpck_require__(4438);
+const { paginateGraphql } = __nccwpck_require__(8942);
 
 class PullRequest {
   // ref: https://developer.github.com/v3/pulls/#get-a-pull-request
@@ -16315,7 +16317,8 @@ function get_octokit() {
   }
 
   const token = get_token();
-  return octokit_cache = github.getOctokit(token);
+  const octokitWithPlugin = github.Github.plugin(paginateGraphql);
+  return octokit_cache = new octokitWithPlugin(github_utils.getOctokitOptions(token));
 }
 
 function clear_cache() {
@@ -16600,6 +16603,14 @@ module.exports = {
   fetch_default_reviewers,
   randomly_pick_reviewers,
 };
+
+
+/***/ }),
+
+/***/ 8942:
+/***/ ((module) => {
+
+module.exports = eval("require")("./@octokit/plugin-paginate-graphql");
 
 
 /***/ }),

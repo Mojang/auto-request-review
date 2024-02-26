@@ -3,9 +3,11 @@
 const core = require('@actions/core');
 const fs = require('fs');
 const github = require('@actions/github');
+const github_utils = require('@actions/github/lib/utils');
 const partition = require('lodash/partition');
 const yaml = require('yaml');
 const { LOCAL_FILE_MISSING } = require('./constants');
+const { paginateGraphql } = require('./@octokit/plugin-paginate-graphql');
 
 class PullRequest {
   // ref: https://developer.github.com/v3/pulls/#get-a-pull-request
@@ -225,7 +227,8 @@ function get_octokit() {
   }
 
   const token = get_token();
-  return octokit_cache = github.getOctokit(token);
+  const octokitWithPlugin = github.Github.plugin(paginateGraphql);
+  return octokit_cache = new octokitWithPlugin(github_utils.getOctokitOptions(token));
 }
 
 function clear_cache() {
