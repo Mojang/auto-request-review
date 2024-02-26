@@ -101,7 +101,7 @@ async function fetch_reviewers() {
   const octokit = get_octokit();
 
   const reviewers = [];
-  // const per_page = 100;
+  const per_page = 10;
 
   // API docs
   // Generated Octokit: https://github.com/octokit/plugin-rest-endpoint-methods.js/blob/main/src/generated/endpoints.ts
@@ -112,22 +112,69 @@ async function fetch_reviewers() {
     repo: context.repo.repo,
     issue_number: context.payload.pull_request.number,
   });
+  core.info('Request format response');
+  core.info(JSON.stringify(response));
 
-  core.info(response);
+  const response2 = await octokit.paginate('GET /repos/{owner}/{repo}/issues/{issue_number}/timeline', {
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    issue_number: context.payload.pull_request.number,
+    per_page: per_page,
+  });
+  core.info('Paginate request format response');
+  core.info(JSON.stringify(response2));
 
-  const response_body = response.data;
-
-  reviewers.push(...response_body.filter((timeline_event) => timeline_event.event === 'review_requested').map((review) => {
-    if (Object.prototype.hasOwnProperty.call(review, 'requested_team')) {
-      return 'team:'.concat(review.requested_team.slug);
-    } else if (Object.prototype.hasOwnProperty.call(review, 'requested_reviewer')) {
-      return review.requested_reviewer.login;
+  const response3 = await octokit.graphqlWithAuth.paginate(
+    `
+    query paginate($endCursor: String, $repo: String!, $owner: String!, $number: Int!, $per_page: Int!) {
+    repository(owner: $owner, name: $repo) {
+        pullRequest(number: $number) {
+            timelineItems(first: $per_page, after: $endCursor, itemTypes: 'REVIEW_REQUESTED_EVENT') {
+                nodes {
+                    __typename
+                    ... on ReviewRequestedEvent {
+                        requestedReviewer {
+                           __typename
+                           ... on User {
+                                login
+                           }
+                           ... on Team {
+                                slug
+                           }
+                        }
+                    }
+                }
+                pageInfo {
+                    hasNextPage
+                    endCursor
+                }
+            }
+        }
     }
+  }`,
+    {
+      owner: context.repo.owner,
+      repo: context.repo.owner,
+      number: context.payload.pull_request.number,
+      per_page: per_page,
+    }
+  );
+  core.info('graphql format response');
+  core.info(JSON.stringify(response3));
 
-    core.debug('Failed to find requested team or requested reviewer');
-    core.debug(JSON.stringify(review));
-    return '';
-  }).filter((reviewer) => reviewer.length));
+  // const response_body = response.data;
+
+  // reviewers.push(...response_body.filter((timeline_event) => timeline_event.event === 'review_requested').map((review) => {
+  //   if (Object.prototype.hasOwnProperty.call(review, 'requested_team')) {
+  //     return 'team:'.concat(review.requested_team.slug);
+  //   } else if (Object.prototype.hasOwnProperty.call(review, 'requested_reviewer')) {
+  //     return review.requested_reviewer.login;
+  //   }
+
+  //   core.debug('Failed to find requested team or requested reviewer');
+  //   core.debug(JSON.stringify(review));
+  //   return '';
+  // }).filter((reviewer) => reviewer.length));
 
   return reviewers;
 }
