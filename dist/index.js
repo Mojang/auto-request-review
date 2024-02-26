@@ -16451,42 +16451,13 @@ async function fetch_reviewers() {
       per_page: per_page,
     }
   );
-  core.info(JSON.stringify(response));
+
   reviewers.push(...(response?.repository?.pullRequest?.timelineItems?.nodes || {}).map((reviewer) => {
-    core.info(JSON.stringify(reviewer));
-    if (reviewer?.requestedReviewer && Object.prototype.hasOwnProperty.call(reviewer?.requestedReviewer, 'slug')) {
-      return 'team:'.concat(reviewer?.requestedReviewer.slug);
+    if (reviewer?.requestedReviewer?.slug) {
+      return 'team:'.concat(reviewer.requestedReviewer.slug);
     }
     return reviewer?.requestedReviewer?.login || '';
-  }));
-
-  core.info(`reviewers: ${reviewers.join(', ')}`);
-
-  // API docs
-  // Generated Octokit: https://github.com/octokit/plugin-rest-endpoint-methods.js/blob/main/src/generated/endpoints.ts
-  // Timeline Rest APIs: https://docs.github.com/en/rest/issues/timeline?apiVersion=2022-11-28#about-timeline-events
-  // Pagination: https://docs.github.com/en/rest/using-the-rest-api/using-pagination-in-the-rest-api?apiVersion=2022-11-28#example-using-the-octokitjs-pagination-method
-  // const response2 = await octokit.paginate('GET /repos/{owner}/{repo}/issues/{issue_number}/timeline', {
-  //   owner: context.repo.owner,
-  //   repo: context.repo.repo,
-  //   issue_number: context.payload.pull_request.number,
-  //   per_page: per_page,
-  // });
-  // core.info('Paginate request format response');
-  // core.info(JSON.stringify(response2));
-  // const response_body = response2.data;
-
-  // reviewers.push(...response_body.filter((timeline_event) => timeline_event.event === 'review_requested').map((review) => {
-  //   if (Object.prototype.hasOwnProperty.call(review, 'requested_team')) {
-  //     return 'team:'.concat(review.requested_team.slug);
-  //   } else if (Object.prototype.hasOwnProperty.call(review, 'requested_reviewer')) {
-  //     return review.requested_reviewer.login;
-  //   }
-
-  //   core.debug('Failed to find requested team or requested reviewer');
-  //   core.debug(JSON.stringify(review));
-  //   return '';
-  // }).filter((reviewer) => reviewer.length));
+  }).filter((reviewer) => reviewer.length));
 
   return reviewers;
 }
