@@ -156,7 +156,7 @@ async function fetch_reviewers() {
   }`,
     {
       owner: context.repo.owner,
-      repo: context.repo.owner,
+      repo: context.repo.repo,
       number: context.payload.pull_request.number,
       per_page: per_page,
     }
