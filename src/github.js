@@ -228,7 +228,7 @@ function get_octokit() {
   }
 
   const token = get_token();
-  const octokitWithPlugin = github.Github.plugin(paginateGraphql);
+  const octokitWithPlugin = github.plugin(paginateGraphql);
   return octokit_cache = new octokitWithPlugin(github_utils.getOctokitOptions(token));
 }
 
