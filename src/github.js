@@ -109,50 +109,50 @@ async function fetch_reviewers() {
   // Generated Octokit: https://github.com/octokit/plugin-rest-endpoint-methods.js/blob/main/src/generated/endpoints.ts
   // Timeline Rest APIs: https://docs.github.com/en/rest/issues/timeline?apiVersion=2022-11-28#about-timeline-events
   // Pagination: https://docs.github.com/en/rest/using-the-rest-api/using-pagination-in-the-rest-api?apiVersion=2022-11-28#example-using-the-octokitjs-pagination-method
-  const response = await octokit.request('GET /repos/{owner}/{repo}/issues/{issue_number}/timeline', {
-    owner: context.repo.owner,
-    repo: context.repo.repo,
-    issue_number: context.payload.pull_request.number,
-  });
-  core.info('Request format response');
-  core.info(JSON.stringify(response));
+  // const response = await octokit.request('GET /repos/{owner}/{repo}/issues/{issue_number}/timeline', {
+  //   owner: context.repo.owner,
+  //   repo: context.repo.repo,
+  //   issue_number: context.payload.pull_request.number,
+  // });
+  // core.info('Request format response');
+  // core.info(JSON.stringify(response));
 
-  const response2 = await octokit.paginate('GET /repos/{owner}/{repo}/issues/{issue_number}/timeline', {
-    owner: context.repo.owner,
-    repo: context.repo.repo,
-    issue_number: context.payload.pull_request.number,
-    per_page: per_page,
-  });
-  core.info('Paginate request format response');
-  core.info(JSON.stringify(response2));
+  // const response2 = await octokit.paginate('GET /repos/{owner}/{repo}/issues/{issue_number}/timeline', {
+  //   owner: context.repo.owner,
+  //   repo: context.repo.repo,
+  //   issue_number: context.payload.pull_request.number,
+  //   per_page: per_page,
+  // });
+  // core.info('Paginate request format response');
+  // core.info(JSON.stringify(response2));
 
   const response3 = await octokit.graphql.paginate(
     `
     query paginate($endCursor: String, $repo: String!, $owner: String!, $number: Int!, $per_page: Int!) {
-    repository(owner: $owner, name: $repo) {
-        pullRequest(number: $number) {
-            timelineItems(first: $per_page, after: $endCursor, itemTypes: 'REVIEW_REQUESTED_EVENT') {
-                nodes {
-                    __typename
-                    ... on ReviewRequestedEvent {
-                        requestedReviewer {
-                           __typename
-                           ... on User {
-                                login
-                           }
-                           ... on Team {
-                                slug
-                           }
-                        }
-                    }
-                }
-                pageInfo {
-                    hasNextPage
-                    endCursor
-                }
-            }
-        }
-    }
+      repository(owner: $owner, name: $repo) {
+          pullRequest(number: $number) {
+              timelineItems(first: $per_page, after: $endCursor, itemTypes: REVIEW_REQUESTED_EVENT) {
+                  nodes {
+                      __typename
+                      ... on ReviewRequestedEvent {
+                          requestedReviewer {
+                            __typename
+                            ... on User {
+                                  login
+                            }
+                            ... on Team {
+                                  slug
+                            }
+                          }
+                      }
+                  }
+                  pageInfo {
+                      hasNextPage
+                      endCursor
+                  }
+              }
+          }
+      }
   }`,
     {
       owner: context.repo.owner,
