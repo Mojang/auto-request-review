@@ -5,37 +5,33 @@ const fs = require('fs');
 const github = require('@actions/github');
 const sinon = require('sinon');
 const yaml = require('yaml');
+
+// rewire's method name needs to be disabled from lint since we don't control it
+/* eslint no-underscore-dangle: ["error", { "allow": ["__set__"] }] */
+const rewire = require('rewire');
+
 const { ContextStub } = require('./stubs/context');
 const { expect } = require('chai');
 
-const {
-  get_pull_request,
-  fetch_config,
-  fetch_changed_files,
-  fetch_reviewers,
-  assign_reviewers,
-  clear_cache,
-} = require('../src/github');
-
 describe('github', function() {
+  const local_github = rewire('../src/github');
+
   beforeEach(function() {
-    clear_cache();
+    local_github.clear_cache();
 
     const context = ContextStub.build();
     github.context = context;
 
     sinon.stub(core, 'getInput');
-    sinon.stub(github, 'getOctokit');
   });
 
   afterEach(function() {
     core.getInput.restore();
-    github.getOctokit.restore();
   });
 
   describe('get_pull_request()', function() {
     it('returns pull request data', function() {
-      const pull_request = get_pull_request();
+      const pull_request = local_github.get_pull_request();
 
       // See the default values of ContextStub
       expect(pull_request.title).to.equal('Extract GitHub related functions into a github module');
@@ -62,14 +58,19 @@ describe('github', function() {
       },
     };
 
+    let restoreModule;
     beforeEach(function() {
       core.getInput.withArgs('config').returns(config_path);
-      github.getOctokit.returns(octokit);
+      restoreModule = local_github.__set__('octokit_cache', octokit);
+    });
+
+    afterEach(function() {
+      restoreModule();
     });
 
     it('returns a config object', async function() {
       const expected = yaml.parse(Buffer.from(content, encoding).toString());
-      const actual = await fetch_config();
+      const actual = await local_github.fetch_config();
       expect(actual).to.deep.equal(expected);
     });
   });
@@ -82,8 +83,12 @@ describe('github', function() {
       },
     };
 
+    let restoreModule;
     beforeEach(function() {
-      github.getOctokit.returns(octokit);
+      restoreModule = local_github.__set__('octokit_cache', octokit);
+    });
+    afterEach(function() {
+      restoreModule();
     });
 
     it('fetch changed files', async function() {
@@ -94,7 +99,7 @@ describe('github', function() {
         ],
       });
       const expected = [ 'super/mario/64', 'paper/mario' ];
-      const actual = await fetch_changed_files();
+      const actual = await local_github.fetch_changed_files();
       expect(actual).to.deep.equal(expected);
     });
 
@@ -119,7 +124,7 @@ describe('github', function() {
       stub.onCall(2).returns({ data: filenames_in_chunks[1].map((filename) => ({ filename })) });
       stub.onCall(3).returns({ data: filenames_in_chunks[2].map((filename) => ({ filename })) });
 
-      const changed_files = await fetch_changed_files();
+      const changed_files = await local_github.fetch_changed_files();
       expect(changed_files).to.have.members(filenames);
     });
   });
@@ -132,8 +137,12 @@ describe('github', function() {
       },
     };
 
+    let restoreModule;
     beforeEach(function() {
-      github.getOctokit.returns(octokit);
+      restoreModule = local_github.__set__('octokit_cache', octokit);
+    });
+    afterEach(function() {
+      restoreModule();
     });
 
     it('fetches current reviewers - user only', async function() {
@@ -146,7 +155,7 @@ describe('github', function() {
         },
       });
       const expected = [ 'super/mario/64' ];
-      const actual = await fetch_reviewers();
+      const actual = await local_github.fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
 
@@ -160,7 +169,7 @@ describe('github', function() {
         },
       });
       const expected = [ 'team:super_marios' ];
-      const actual = await fetch_reviewers();
+      const actual = await local_github.fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
 
@@ -179,7 +188,7 @@ describe('github', function() {
         },
       });
       const expected = [ 'bowser', 'peach', 'luigi', 'team:super_marios', 'team:toads' ];
-      const actual = await fetch_reviewers();
+      const actual = await local_github.fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
   });
@@ -192,14 +201,17 @@ describe('github', function() {
       },
     };
 
+    let restoreModule;
     beforeEach(function() {
-      github.getOctokit.resetBehavior();
-      github.getOctokit.returns(octokit);
+      restoreModule = local_github.__set__('octokit_cache', octokit);
+    });
+    afterEach(function() {
+      restoreModule();
     });
 
     it('assigns reviewers', async function() {
       const reviewers = [ 'mario', 'princess-peach', 'team:koopa-troop' ];
-      await assign_reviewers(reviewers);
+      await local_github.assign_reviewers(reviewers);
 
       expect(spy.calledOnce).to.be.true;
       expect(spy.lastCall.args[0]).to.deep.equal({
