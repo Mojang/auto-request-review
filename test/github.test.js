@@ -132,8 +132,8 @@ describe('github', function() {
   describe('fetch_reviewers()', function() {
     const stub = sinon.stub();
     const octokit = {
-      pulls: {
-        listRequestedReviewers: stub,
+      graphql: {
+        paginate: stub,
       },
     };
 
@@ -145,13 +145,39 @@ describe('github', function() {
       restoreModule();
     });
 
+    it('fetches current reviewers - empty response', async function() {
+      const expected = [ ];
+      const actual = await local_github.fetch_reviewers();
+      expect(actual).to.deep.equal(expected);
+    });
+
+    it('fetches current reviewers - unexpected response', async function() {
+      stub.returns({
+        repository: {
+          pullRequest: {
+            timelineItems: {
+              nodes: [
+                { unknown_timeline_event: { id: '1234' } },
+              ],
+            },
+          },
+        },
+      });
+      const expected = [ ];
+      const actual = await local_github.fetch_reviewers();
+      expect(actual).to.deep.equal(expected);
+    });
+
     it('fetches current reviewers - user only', async function() {
       stub.returns({
-        data: {
-          users: [
-            { login: 'super/mario/64' },
-          ],
-          teams: [],
+        repository: {
+          pullRequest: {
+            timelineItems: {
+              nodes: [
+                { requestedReviewer: { login: 'super/mario/64' } },
+              ],
+            },
+          },
         },
       });
       const expected = [ 'super/mario/64' ];
@@ -161,11 +187,14 @@ describe('github', function() {
 
     it('fetches current reviewers - team only', async function() {
       stub.returns({
-        data: {
-          users: [ ],
-          teams: [
-            { slug: 'super_marios' },
-          ],
+        repository: {
+          pullRequest: {
+            timelineItems: {
+              nodes: [
+                { requestedReviewer: { slug: 'super_marios' } },
+              ],
+            },
+          },
         },
       });
       const expected = [ 'team:super_marios' ];
@@ -175,16 +204,18 @@ describe('github', function() {
 
     it('fetches current reviewers - combined users and teams', async function() {
       stub.returns({
-        data: {
-          users: [
-            { login: 'bowser' },
-            { login: 'peach' },
-            { login: 'luigi' },
-          ],
-          teams: [
-            { slug: 'super_marios' },
-            { slug: 'toads' },
-          ],
+        repository: {
+          pullRequest: {
+            timelineItems: {
+              nodes: [
+                { requestedReviewer: { login: 'bowser' } },
+                { requestedReviewer: { login: 'peach' } },
+                { requestedReviewer: { login: 'luigi' } },
+                { requestedReviewer: { slug: 'super_marios' } },
+                { requestedReviewer: { slug: 'toads' } },
+              ],
+            },
+          },
         },
       });
       const expected = [ 'bowser', 'peach', 'luigi', 'team:super_marios', 'team:toads' ];

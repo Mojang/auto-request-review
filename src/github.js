@@ -143,7 +143,7 @@ async function fetch_reviewers() {
     }
   );
 
-  reviewers.push(...(response?.repository?.pullRequest?.timelineItems?.nodes || {}).map((reviewer) => {
+  reviewers.push(...(response?.repository?.pullRequest?.timelineItems?.nodes || []).map((reviewer) => {
     if (reviewer?.requestedReviewer?.slug) {
       return 'team:'.concat(reviewer.requestedReviewer.slug);
     }
