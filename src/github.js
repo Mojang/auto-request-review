@@ -143,12 +143,14 @@ async function fetch_reviewers() {
     }
   );
 
-  reviewers.push(...(response?.repository?.pullRequest?.timelineItems?.nodes || []).map((reviewer) => {
-    if (reviewer?.requestedReviewer?.slug) {
-      return 'team:'.concat(reviewer.requestedReviewer.slug);
+  const reviewerNodes = response?.repository?.pullRequest?.timelineItems?.nodes || [];
+  reviewerNodes.forEach((reviewRequestedEvent) => {
+    if (reviewRequestedEvent?.requestedReviewer?.slug) {
+      reviewers.push('team:'.concat(reviewRequestedEvent.requestedReviewer.slug));
+    } else if (reviewRequestedEvent?.requestedReviewer?.login) {
+      reviewers.push(reviewRequestedEvent.requestedReviewer.login);
     }
-    return reviewer?.requestedReviewer?.login || '';
-  }).filter((reviewer) => reviewer.length));
+  });
 
   return reviewers;
 }

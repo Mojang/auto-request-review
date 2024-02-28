@@ -14,10 +14,11 @@ const { ContextStub } = require('./stubs/context');
 const { expect } = require('chai');
 
 describe('github', function() {
-  const local_github = rewire('../src/github');
+  // Rewired is used to set our octokit mock to the private octokit cache variable
+  const rewired_github = rewire('../src/github');
 
   beforeEach(function() {
-    local_github.clear_cache();
+    rewired_github.clear_cache();
 
     const context = ContextStub.build();
     github.context = context;
@@ -31,7 +32,7 @@ describe('github', function() {
 
   describe('get_pull_request()', function() {
     it('returns pull request data', function() {
-      const pull_request = local_github.get_pull_request();
+      const pull_request = rewired_github.get_pull_request();
 
       // See the default values of ContextStub
       expect(pull_request.title).to.equal('Extract GitHub related functions into a github module');
@@ -61,7 +62,7 @@ describe('github', function() {
     let restoreModule;
     beforeEach(function() {
       core.getInput.withArgs('config').returns(config_path);
-      restoreModule = local_github.__set__('octokit_cache', octokit);
+      restoreModule = rewired_github.__set__('octokit_cache', octokit);
     });
 
     afterEach(function() {
@@ -70,7 +71,7 @@ describe('github', function() {
 
     it('returns a config object', async function() {
       const expected = yaml.parse(Buffer.from(content, encoding).toString());
-      const actual = await local_github.fetch_config();
+      const actual = await rewired_github.fetch_config();
       expect(actual).to.deep.equal(expected);
     });
   });
@@ -85,7 +86,7 @@ describe('github', function() {
 
     let restoreModule;
     beforeEach(function() {
-      restoreModule = local_github.__set__('octokit_cache', octokit);
+      restoreModule = rewired_github.__set__('octokit_cache', octokit);
     });
     afterEach(function() {
       restoreModule();
@@ -99,7 +100,7 @@ describe('github', function() {
         ],
       });
       const expected = [ 'super/mario/64', 'paper/mario' ];
-      const actual = await local_github.fetch_changed_files();
+      const actual = await rewired_github.fetch_changed_files();
       expect(actual).to.deep.equal(expected);
     });
 
@@ -124,7 +125,7 @@ describe('github', function() {
       stub.onCall(2).returns({ data: filenames_in_chunks[1].map((filename) => ({ filename })) });
       stub.onCall(3).returns({ data: filenames_in_chunks[2].map((filename) => ({ filename })) });
 
-      const changed_files = await local_github.fetch_changed_files();
+      const changed_files = await rewired_github.fetch_changed_files();
       expect(changed_files).to.have.members(filenames);
     });
   });
@@ -139,7 +140,7 @@ describe('github', function() {
 
     let restoreModule;
     beforeEach(function() {
-      restoreModule = local_github.__set__('octokit_cache', octokit);
+      restoreModule = rewired_github.__set__('octokit_cache', octokit);
     });
     afterEach(function() {
       restoreModule();
@@ -147,7 +148,7 @@ describe('github', function() {
 
     it('fetches current reviewers - empty response', async function() {
       const expected = [ ];
-      const actual = await local_github.fetch_reviewers();
+      const actual = await rewired_github.fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
 
@@ -164,7 +165,7 @@ describe('github', function() {
         },
       });
       const expected = [ ];
-      const actual = await local_github.fetch_reviewers();
+      const actual = await rewired_github.fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
 
@@ -181,7 +182,7 @@ describe('github', function() {
         },
       });
       const expected = [ 'super/mario/64' ];
-      const actual = await local_github.fetch_reviewers();
+      const actual = await rewired_github.fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
 
@@ -198,7 +199,7 @@ describe('github', function() {
         },
       });
       const expected = [ 'team:super_marios' ];
-      const actual = await local_github.fetch_reviewers();
+      const actual = await rewired_github.fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
 
@@ -219,7 +220,7 @@ describe('github', function() {
         },
       });
       const expected = [ 'bowser', 'peach', 'luigi', 'team:super_marios', 'team:toads' ];
-      const actual = await local_github.fetch_reviewers();
+      const actual = await rewired_github.fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
   });
@@ -234,7 +235,7 @@ describe('github', function() {
 
     let restoreModule;
     beforeEach(function() {
-      restoreModule = local_github.__set__('octokit_cache', octokit);
+      restoreModule = rewired_github.__set__('octokit_cache', octokit);
     });
     afterEach(function() {
       restoreModule();
@@ -242,7 +243,7 @@ describe('github', function() {
 
     it('assigns reviewers', async function() {
       const reviewers = [ 'mario', 'princess-peach', 'team:koopa-troop' ];
-      await local_github.assign_reviewers(reviewers);
+      await rewired_github.assign_reviewers(reviewers);
 
       expect(spy.calledOnce).to.be.true;
       expect(spy.lastCall.args[0]).to.deep.equal({

@@ -17492,12 +17492,14 @@ async function fetch_reviewers() {
     }
   );
 
-  reviewers.push(...(response?.repository?.pullRequest?.timelineItems?.nodes || []).map((reviewer) => {
-    if (reviewer?.requestedReviewer?.slug) {
-      return 'team:'.concat(reviewer.requestedReviewer.slug);
+  const reviewerNodes = response?.repository?.pullRequest?.timelineItems?.nodes || [];
+  reviewerNodes.forEach((reviewRequestedEvent) => {
+    if (reviewRequestedEvent?.requestedReviewer?.slug) {
+      reviewers.push('team:'.concat(reviewRequestedEvent.requestedReviewer.slug));
+    } else if (reviewRequestedEvent?.requestedReviewer?.login) {
+      reviewers.push(reviewRequestedEvent.requestedReviewer.login);
     }
-    return reviewer?.requestedReviewer?.login || '';
-  }).filter((reviewer) => reviewer.length));
+  });
 
   return reviewers;
 }
@@ -17623,9 +17625,9 @@ async function run() {
   core.info('Fetching changed files in the pull request');
   const changed_files = await github.fetch_changed_files();
 
-  core.info('Fetching previously requested reviewers');
-  const current_reviewers = await github.fetch_reviewers();
-  core.info(`Already in review: ${current_reviewers.join(', ')}`);
+  core.info('Fetching requested reviewers');
+  const requested_reviewers = await github.fetch_reviewers();
+  core.info(`Already requested to review: ${requested_reviewers.join(', ')}`);
 
   core.info('Identifying reviewers based on the changed files');
   const reviewers_based_on_files = identify_reviewers_by_changed_files({ config, changed_files, excludes: [ author ] });
@@ -17652,7 +17654,7 @@ async function run() {
   }
 
   core.info(`Possible Reviewers ${reviewers.join(', ')}, prepare filtering out already requested reviewers`);
-  reviewers = reviewers.filter((reviewer) => !current_reviewers.includes(reviewer));
+  reviewers = reviewers.filter((reviewer) => !requested_reviewers.includes(reviewer));
 
   core.info('Randomly picking reviewers if the number of reviewers is set');
   reviewers = randomly_pick_reviewers({ reviewers, config });
