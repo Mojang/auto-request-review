@@ -6,6 +6,10 @@ const github = require('@actions/github');
 const partition = require('lodash/partition');
 const yaml = require('yaml');
 const { LOCAL_FILE_MISSING } = require('./constants');
+// Applying Additional Plugins to Octokit from Github
+// https://github.com/actions/toolkit/tree/main/packages/github#extending-the-octokit-instance
+const github_utils = require('@actions/github/lib/utils');
+const { paginateGraphql } = require('@octokit/plugin-paginate-graphql');
 
 class PullRequest {
   // ref: https://developer.github.com/v3/pulls/#get-a-pull-request
@@ -96,25 +100,67 @@ async function fetch_changed_files() {
   return changed_files;
 }
 
-async function fetch_current_reviewers() {
+async function fetch_reviewers() {
   const context = get_context();
   const octokit = get_octokit();
 
-  const current_reviewers = [];
+  const reviewers = new Set();
+  const per_page = 100;
 
-  // API docs
-  // Generated octokit methods: https://github.com/octokit/plugin-rest-endpoint-methods.js/blob/main/src/generated/endpoints.ts
-  // Available Rest APIs: https://docs.github.com/en/rest/pulls/review-requests?apiVersion=2022-11-28#get-all-requested-reviewers-for-a-pull-request
-  const { data: response_body } = await octokit.pulls.listRequestedReviewers({
-    owner: context.repo.owner,
-    repo: context.repo.repo,
-    pull_number: context.payload.pull_request.number,
+  // GraphQL Docs: https://docs.github.com/en/graphql/reference/unions#pullrequesttimelineitems
+  // Pagination: https://github.com/octokit/plugin-paginate-graphql.js/?tab=readme-ov-file#usage
+  const response = await octokit.graphql.paginate(
+    `
+    query paginate($cursor: String, $repo: String!, $owner: String!, $number: Int!, $per_page: Int!) {
+      repository(owner: $owner, name: $repo) {
+          pullRequest(number: $number) {
+              timelineItems(first: $per_page, after: $cursor, itemTypes: [REVIEW_REQUESTED_EVENT, PULL_REQUEST_REVIEW]) {
+                  nodes {
+                      ... on ReviewRequestedEvent {
+                          requestedReviewer {
+                            ... on User {
+                                  login
+                            }
+                            ... on Team {
+                                  slug
+                            }
+                          }
+                      }
+                      ... on PullRequestReview {
+                        author {
+                          login
+                        }
+                        state
+                      }
+                  }
+                  pageInfo {
+                      hasNextPage
+                      endCursor
+                  }
+              }
+          }
+      }
+  }`,
+    {
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      number: context.payload.pull_request.number,
+      per_page: per_page,
+    }
+  );
+
+  const eventNodes = response?.repository?.pullRequest?.timelineItems?.nodes || [];
+  eventNodes.forEach((timelineEvent) => {
+    if (timelineEvent?.requestedReviewer?.slug) {
+      reviewers.add('team:'.concat(timelineEvent.requestedReviewer.slug));
+    } else if (timelineEvent?.requestedReviewer?.login) {
+      reviewers.add(timelineEvent.requestedReviewer.login);
+    } else if (timelineEvent?.state && timelineEvent.state === 'APPROVED' && timelineEvent?.author?.login) {
+      reviewers.add(timelineEvent.author.login);
+    }
   });
 
-  current_reviewers.push(...response_body.users.map((user) => user.login));
-  current_reviewers.push(...response_body.teams.map((team) => 'team:'.concat(team.slug)));
-
-  return current_reviewers;
+  return [ ...reviewers ];
 }
 
 async function assign_reviewers(reviewers) {
@@ -162,8 +208,11 @@ function get_octokit() {
     return octokit_cache;
   }
 
+  // Applying Additional Plugins to Octokit from Github
+  // https://github.com/actions/toolkit/tree/main/packages/github#extending-the-octokit-instance
   const token = get_token();
-  return octokit_cache = github.getOctokit(token);
+  const octokitWithPlugin = github_utils.GitHub.plugin(paginateGraphql);
+  return octokit_cache = new octokitWithPlugin(github_utils.getOctokitOptions(token));
 }
 
 function clear_cache() {
@@ -177,7 +226,7 @@ module.exports = {
   get_pull_request,
   fetch_config,
   fetch_changed_files,
-  fetch_current_reviewers,
+  fetch_reviewers,
   assign_reviewers,
   clear_cache,
 };

@@ -14,7 +14,7 @@ describe('index', function() {
       sinon.stub(github, 'get_pull_request');
       sinon.stub(github, 'fetch_config');
       sinon.stub(github, 'fetch_changed_files');
-      sinon.stub(github, 'fetch_current_reviewers');
+      sinon.stub(github, 'fetch_reviewers');
       sinon.stub(github, 'assign_reviewers');
     });
 
@@ -22,7 +22,7 @@ describe('index', function() {
       github.get_pull_request.restore();
       github.fetch_config.restore();
       github.fetch_changed_files.restore();
-      github.fetch_current_reviewers.restore();
+      github.fetch_reviewers.restore();
       github.assign_reviewers.restore();
     });
 
@@ -52,7 +52,7 @@ describe('index', function() {
       github.fetch_changed_files.returns(changed_fiels);
 
       const current_reviewers = [];
-      github.fetch_current_reviewers.returns(current_reviewers);
+      github.fetch_reviewers.returns(current_reviewers);
 
       await run();
 
@@ -86,7 +86,7 @@ describe('index', function() {
       github.fetch_changed_files.returns(changed_files);
 
       const current_reviewers = [ 'princess-peach' ];
-      github.fetch_current_reviewers.returns(current_reviewers);
+      github.fetch_reviewers.returns(current_reviewers);
 
       await run();
 
@@ -120,7 +120,7 @@ describe('index', function() {
       github.fetch_changed_files.returns(changed_files);
 
       const current_reviewers = [ 'team:bowser-and-co' ];
-      github.fetch_current_reviewers.returns(current_reviewers);
+      github.fetch_reviewers.returns(current_reviewers);
 
       await run();
 
@@ -154,7 +154,7 @@ describe('index', function() {
       github.fetch_changed_files.returns(changed_files);
 
       const current_reviewers = [ 'princess-peach', 'mario' ];
-      github.fetch_current_reviewers.returns(current_reviewers);
+      github.fetch_reviewers.returns(current_reviewers);
 
       await run();
 
@@ -187,7 +187,7 @@ describe('index', function() {
       github.fetch_changed_files.returns(changed_fiels);
 
       const current_reviewers = [];
-      github.fetch_current_reviewers.returns(current_reviewers);
+      github.fetch_reviewers.returns(current_reviewers);
 
       await run();
 
@@ -217,7 +217,7 @@ describe('index', function() {
       github.fetch_changed_files.returns(changed_fiels);
 
       const current_reviewers = [];
-      github.fetch_current_reviewers.returns(current_reviewers);
+      github.fetch_reviewers.returns(current_reviewers);
 
       await run();
 
@@ -246,7 +246,7 @@ describe('index', function() {
       github.fetch_changed_files.returns(changed_fiels);
 
       const current_reviewers = [];
-      github.fetch_current_reviewers.returns(current_reviewers);
+      github.fetch_reviewers.returns(current_reviewers);
 
       await run();
 
@@ -278,7 +278,7 @@ describe('index', function() {
       github.fetch_changed_files.returns(changed_fiels);
 
       const current_reviewers = [];
-      github.fetch_current_reviewers.returns(current_reviewers);
+      github.fetch_reviewers.returns(current_reviewers);
 
       await run();
 
@@ -311,7 +311,7 @@ describe('index', function() {
       github.fetch_changed_files.returns(changed_fiels);
 
       const current_reviewers = [];
-      github.fetch_current_reviewers.returns(current_reviewers);
+      github.fetch_reviewers.returns(current_reviewers);
 
       await run();
 
@@ -345,7 +345,7 @@ describe('index', function() {
       github.fetch_changed_files.returns(changed_fiels);
 
       const current_reviewers = [];
-      github.fetch_current_reviewers.returns(current_reviewers);
+      github.fetch_reviewers.returns(current_reviewers);
 
       await run();
 
@@ -379,7 +379,7 @@ describe('index', function() {
       github.fetch_changed_files.returns(changed_fiels);
 
       const current_reviewers = [];
-      github.fetch_current_reviewers.returns(current_reviewers);
+      github.fetch_reviewers.returns(current_reviewers);
 
       await run();
 
@@ -411,7 +411,7 @@ describe('index', function() {
       github.fetch_changed_files.returns(changed_fiels);
 
       const current_reviewers = [];
-      github.fetch_current_reviewers.returns(current_reviewers);
+      github.fetch_reviewers.returns(current_reviewers);
 
       await run();
 

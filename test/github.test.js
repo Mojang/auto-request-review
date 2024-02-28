@@ -5,37 +5,34 @@ const fs = require('fs');
 const github = require('@actions/github');
 const sinon = require('sinon');
 const yaml = require('yaml');
+
+// rewire's method name needs to be disabled from lint since we don't control it
+/* eslint no-underscore-dangle: ["error", { "allow": ["__set__"] }] */
+const rewire = require('rewire');
+
 const { ContextStub } = require('./stubs/context');
 const { expect } = require('chai');
 
-const {
-  get_pull_request,
-  fetch_config,
-  fetch_changed_files,
-  fetch_current_reviewers,
-  assign_reviewers,
-  clear_cache,
-} = require('../src/github');
-
 describe('github', function() {
+  // Rewired is used to set our octokit mock to the private octokit cache variable
+  const rewired_github = rewire('../src/github');
+
   beforeEach(function() {
-    clear_cache();
+    rewired_github.clear_cache();
 
     const context = ContextStub.build();
     github.context = context;
 
     sinon.stub(core, 'getInput');
-    sinon.stub(github, 'getOctokit');
   });
 
   afterEach(function() {
     core.getInput.restore();
-    github.getOctokit.restore();
   });
 
   describe('get_pull_request()', function() {
     it('returns pull request data', function() {
-      const pull_request = get_pull_request();
+      const pull_request = rewired_github.get_pull_request();
 
       // See the default values of ContextStub
       expect(pull_request.title).to.equal('Extract GitHub related functions into a github module');
@@ -62,14 +59,19 @@ describe('github', function() {
       },
     };
 
+    let restoreModule;
     beforeEach(function() {
       core.getInput.withArgs('config').returns(config_path);
-      github.getOctokit.returns(octokit);
+      restoreModule = rewired_github.__set__('octokit_cache', octokit);
+    });
+
+    afterEach(function() {
+      restoreModule();
     });
 
     it('returns a config object', async function() {
       const expected = yaml.parse(Buffer.from(content, encoding).toString());
-      const actual = await fetch_config();
+      const actual = await rewired_github.fetch_config();
       expect(actual).to.deep.equal(expected);
     });
   });
@@ -82,8 +84,12 @@ describe('github', function() {
       },
     };
 
+    let restoreModule;
     beforeEach(function() {
-      github.getOctokit.returns(octokit);
+      restoreModule = rewired_github.__set__('octokit_cache', octokit);
+    });
+    afterEach(function() {
+      restoreModule();
     });
 
     it('fetch changed files', async function() {
@@ -94,7 +100,7 @@ describe('github', function() {
         ],
       });
       const expected = [ 'super/mario/64', 'paper/mario' ];
-      const actual = await fetch_changed_files();
+      const actual = await rewired_github.fetch_changed_files();
       expect(actual).to.deep.equal(expected);
     });
 
@@ -119,67 +125,155 @@ describe('github', function() {
       stub.onCall(2).returns({ data: filenames_in_chunks[1].map((filename) => ({ filename })) });
       stub.onCall(3).returns({ data: filenames_in_chunks[2].map((filename) => ({ filename })) });
 
-      const changed_files = await fetch_changed_files();
+      const changed_files = await rewired_github.fetch_changed_files();
       expect(changed_files).to.have.members(filenames);
     });
   });
 
-  describe('fetch_current_reviewers()', function() {
+  describe('fetch_reviewers()', function() {
     const stub = sinon.stub();
     const octokit = {
-      pulls: {
-        listRequestedReviewers: stub,
+      graphql: {
+        paginate: stub,
       },
     };
 
+    let restoreModule;
     beforeEach(function() {
-      github.getOctokit.returns(octokit);
+      restoreModule = rewired_github.__set__('octokit_cache', octokit);
+    });
+    afterEach(function() {
+      restoreModule();
     });
 
-    it('fetches current reviewers - user only', async function() {
+    it('fetches reviewers - empty response', async function() {
+      const expected = [ ];
+      const actual = await rewired_github.fetch_reviewers();
+      expect(actual).to.deep.equal(expected);
+    });
+
+    it('fetches reviewers - unexpected response', async function() {
       stub.returns({
-        data: {
-          users: [
-            { login: 'super/mario/64' },
-          ],
-          teams: [],
+        repository: {
+          pullRequest: {
+            timelineItems: {
+              nodes: [
+                { unknown_timeline_event: { id: '1234' } },
+              ],
+            },
+          },
+        },
+      });
+      const expected = [ ];
+      const actual = await rewired_github.fetch_reviewers();
+      expect(actual).to.deep.equal(expected);
+    });
+
+    it('fetches reviewers - requested user only', async function() {
+      stub.returns({
+        repository: {
+          pullRequest: {
+            timelineItems: {
+              nodes: [
+                { requestedReviewer: { login: 'super/mario/64' } },
+              ],
+            },
+          },
         },
       });
       const expected = [ 'super/mario/64' ];
-      const actual = await fetch_current_reviewers();
+      const actual = await rewired_github.fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
 
-    it('fetches current reviewers - team only', async function() {
+    it('fetches reviewers - requested team only', async function() {
       stub.returns({
-        data: {
-          users: [ ],
-          teams: [
-            { slug: 'super_marios' },
-          ],
+        repository: {
+          pullRequest: {
+            timelineItems: {
+              nodes: [
+                { requestedReviewer: { slug: 'super_marios' } },
+              ],
+            },
+          },
         },
       });
       const expected = [ 'team:super_marios' ];
-      const actual = await fetch_current_reviewers();
+      const actual = await rewired_github.fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
 
-    it('fetches current reviewers - combined users and teams', async function() {
+    it('fetches reviewers - combined requested users and teams', async function() {
       stub.returns({
-        data: {
-          users: [
-            { login: 'bowser' },
-            { login: 'peach' },
-            { login: 'luigi' },
-          ],
-          teams: [
-            { slug: 'super_marios' },
-            { slug: 'toads' },
-          ],
+        repository: {
+          pullRequest: {
+            timelineItems: {
+              nodes: [
+                { requestedReviewer: { login: 'bowser' } },
+                { requestedReviewer: { login: 'peach' } },
+                { requestedReviewer: { login: 'luigi' } },
+                { requestedReviewer: { slug: 'super_marios' } },
+                { requestedReviewer: { slug: 'toads' } },
+              ],
+            },
+          },
         },
       });
       const expected = [ 'bowser', 'peach', 'luigi', 'team:super_marios', 'team:toads' ];
-      const actual = await fetch_current_reviewers();
+      const actual = await rewired_github.fetch_reviewers();
+      expect(actual).to.deep.equal(expected);
+    });
+
+    it('fetches reviewers - approved users', async function() {
+      stub.returns({
+        repository: {
+          pullRequest: {
+            timelineItems: {
+              nodes: [
+                {
+                  author: { login: 'bowser' },
+                  state: 'APPROVED',
+                },
+                {
+                  author: { login: 'peach' },
+                  state: 'CHANGES_REQUESTED',
+                },
+              ],
+            },
+          },
+        },
+      });
+      const expected = [ 'bowser' ];
+      const actual = await rewired_github.fetch_reviewers();
+      expect(actual).to.deep.equal(expected);
+    });
+
+    it('fetches reviewers - mixed approved and requested', async function() {
+      stub.returns({
+        repository: {
+          pullRequest: {
+            timelineItems: {
+              nodes: [
+                { requestedReviewer: { login: 'bowser' } },
+                { requestedReviewer: { login: 'peach' } },
+                { requestedReviewer: { login: 'luigi' } },
+                { requestedReviewer: { slug: 'super_marios' } },
+                { requestedReviewer: { slug: 'toads' } },
+                {
+                  author: { login: 'bowser' },
+                  state: 'APPROVED',
+                },
+                {
+                  author: { login: 'mario' },
+                  state: 'APPROVED',
+                },
+              ],
+            },
+          },
+        },
+      });
+      const expected = [ 'bowser', 'peach', 'luigi', 'team:super_marios', 'team:toads', 'mario' ];
+      const actual = await rewired_github.fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
   });
@@ -192,14 +286,17 @@ describe('github', function() {
       },
     };
 
+    let restoreModule;
     beforeEach(function() {
-      github.getOctokit.resetBehavior();
-      github.getOctokit.returns(octokit);
+      restoreModule = rewired_github.__set__('octokit_cache', octokit);
+    });
+    afterEach(function() {
+      restoreModule();
     });
 
     it('assigns reviewers', async function() {
       const reviewers = [ 'mario', 'princess-peach', 'team:koopa-troop' ];
-      await assign_reviewers(reviewers);
+      await rewired_github.assign_reviewers(reviewers);
 
       expect(spy.calledOnce).to.be.true;
       expect(spy.lastCall.args[0]).to.deep.equal({
