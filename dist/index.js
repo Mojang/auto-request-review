@@ -17633,9 +17633,9 @@ async function run() {
   core.info('Fetching changed files in the pull request');
   const changed_files = await github.fetch_changed_files();
 
-  core.info('Fetching requested reviewers');
-  const requested_reviewers = await github.fetch_reviewers();
-  core.info(`Already requested to review: ${requested_reviewers.join(', ')}`);
+  core.info('Fetching reviewers');
+  const requested_approved_reviewers = await github.fetch_reviewers();
+  core.info(`Aliases already requested or approved: ${requested_approved_reviewers.join(', ')}`);
 
   core.info('Identifying reviewers based on the changed files');
   const reviewers_based_on_files = identify_reviewers_by_changed_files({ config, changed_files, excludes: [ author ] });
@@ -17661,8 +17661,8 @@ async function run() {
     reviewers.push(...default_reviewers);
   }
 
-  core.info(`Possible Reviewers ${reviewers.join(', ')}, prepare filtering out already requested reviewers`);
-  reviewers = reviewers.filter((reviewer) => !requested_reviewers.includes(reviewer));
+  core.info(`Possible Reviewers ${reviewers.join(', ')}, prepare filtering out already requested reviewers or approved reviewers`);
+  reviewers = reviewers.filter((reviewer) => !requested_approved_reviewers.includes(reviewer));
 
   core.info('Randomly picking reviewers if the number of reviewers is set');
   reviewers = randomly_pick_reviewers({ reviewers, config });
