@@ -17453,7 +17453,7 @@ async function fetch_reviewers() {
   const context = get_context();
   const octokit = get_octokit();
 
-  const reviewers = [];
+  const reviewers = new Set();
   const per_page = 100;
 
   // GraphQL Docs: https://docs.github.com/en/graphql/reference/unions#pullrequesttimelineitems
@@ -17463,7 +17463,7 @@ async function fetch_reviewers() {
     query paginate($cursor: String, $repo: String!, $owner: String!, $number: Int!, $per_page: Int!) {
       repository(owner: $owner, name: $repo) {
           pullRequest(number: $number) {
-              timelineItems(first: $per_page, after: $cursor, itemTypes: REVIEW_REQUESTED_EVENT) {
+              timelineItems(first: $per_page, after: $cursor, itemTypes: [REVIEW_REQUESTED_EVENT, PULL_REQUEST_REVIEW]) {
                   nodes {
                       ... on ReviewRequestedEvent {
                           requestedReviewer {
@@ -17474,6 +17474,12 @@ async function fetch_reviewers() {
                                   slug
                             }
                           }
+                      }
+                      ... on PullRequestReview {
+                        author {
+                          login
+                        }
+                        state
                       }
                   }
                   pageInfo {
@@ -17492,12 +17498,14 @@ async function fetch_reviewers() {
     }
   );
 
-  const reviewerNodes = response?.repository?.pullRequest?.timelineItems?.nodes || [];
-  reviewerNodes.forEach((reviewRequestedEvent) => {
-    if (reviewRequestedEvent?.requestedReviewer?.slug) {
-      reviewers.push('team:'.concat(reviewRequestedEvent.requestedReviewer.slug));
-    } else if (reviewRequestedEvent?.requestedReviewer?.login) {
-      reviewers.push(reviewRequestedEvent.requestedReviewer.login);
+  const eventNodes = response?.repository?.pullRequest?.timelineItems?.nodes || [];
+  eventNodes.forEach((timelineEvent) => {
+    if (timelineEvent?.requestedReviewer?.slug) {
+      reviewers.add('team:'.concat(timelineEvent.requestedReviewer.slug));
+    } else if (timelineEvent?.requestedReviewer?.login) {
+      reviewers.add(timelineEvent.requestedReviewer.login);
+    } else if (timelineEvent?.state && timelineEvent.state === 'APPROVED' && timelineEvent?.author?.login) {
+      reviewers.add(timelineEvent.author.login);
     }
   });
 

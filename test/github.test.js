@@ -146,13 +146,13 @@ describe('github', function() {
       restoreModule();
     });
 
-    it('fetches current reviewers - empty response', async function() {
-      const expected = [ ];
+    it('fetches reviewers - empty response', async function() {
+      const expected = new Set();
       const actual = await rewired_github.fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
 
-    it('fetches current reviewers - unexpected response', async function() {
+    it('fetches reviewers - unexpected response', async function() {
       stub.returns({
         repository: {
           pullRequest: {
@@ -164,12 +164,12 @@ describe('github', function() {
           },
         },
       });
-      const expected = [ ];
+      const expected = new Set();
       const actual = await rewired_github.fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
 
-    it('fetches current reviewers - user only', async function() {
+    it('fetches reviewers - requested user only', async function() {
       stub.returns({
         repository: {
           pullRequest: {
@@ -181,12 +181,12 @@ describe('github', function() {
           },
         },
       });
-      const expected = [ 'super/mario/64' ];
+      const expected = new Set([ 'super/mario/64' ]);
       const actual = await rewired_github.fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
 
-    it('fetches current reviewers - team only', async function() {
+    it('fetches reviewers - requested team only', async function() {
       stub.returns({
         repository: {
           pullRequest: {
@@ -198,12 +198,12 @@ describe('github', function() {
           },
         },
       });
-      const expected = [ 'team:super_marios' ];
+      const expected = new Set([ 'team:super_marios' ]);
       const actual = await rewired_github.fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
 
-    it('fetches current reviewers - combined users and teams', async function() {
+    it('fetches reviewers - combined requested users and teams', async function() {
       stub.returns({
         repository: {
           pullRequest: {
@@ -219,7 +219,60 @@ describe('github', function() {
           },
         },
       });
-      const expected = [ 'bowser', 'peach', 'luigi', 'team:super_marios', 'team:toads' ];
+      const expected = new Set([ 'bowser', 'peach', 'luigi', 'team:super_marios', 'team:toads' ]);
+      const actual = await rewired_github.fetch_reviewers();
+      expect(actual).to.deep.equal(expected);
+    });
+
+    it('fetches reviewers - approved users', async function() {
+      stub.returns({
+        repository: {
+          pullRequest: {
+            timelineItems: {
+              nodes: [
+                {
+                  author: { login: 'bowser' },
+                  state: 'APPROVED',
+                },
+                {
+                  author: { login: 'peach' },
+                  state: 'CHANGES_REQUESTED',
+                },
+              ],
+            },
+          },
+        },
+      });
+      const expected = new Set([ 'bowser' ]);
+      const actual = await rewired_github.fetch_reviewers();
+      expect(actual).to.deep.equal(expected);
+    });
+
+    it('fetches reviewers - mixed approved and requested', async function() {
+      stub.returns({
+        repository: {
+          pullRequest: {
+            timelineItems: {
+              nodes: [
+                { requestedReviewer: { login: 'bowser' } },
+                { requestedReviewer: { login: 'peach' } },
+                { requestedReviewer: { login: 'luigi' } },
+                { requestedReviewer: { slug: 'super_marios' } },
+                { requestedReviewer: { slug: 'toads' } },
+                {
+                  author: { login: 'bowser' },
+                  state: 'APPROVED',
+                },
+                {
+                  author: { login: 'mario' },
+                  state: 'APPROVED',
+                },
+              ],
+            },
+          },
+        },
+      });
+      const expected = new Set([ 'bowser', 'peach', 'luigi', 'team:super_marios', 'team:toads', 'mario' ]);
       const actual = await rewired_github.fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
