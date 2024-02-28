@@ -160,7 +160,7 @@ async function fetch_reviewers() {
     }
   });
 
-  return reviewers;
+  return [ ...reviewers ];
 }
 
 async function assign_reviewers(reviewers) {

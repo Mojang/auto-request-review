@@ -147,7 +147,7 @@ describe('github', function() {
     });
 
     it('fetches reviewers - empty response', async function() {
-      const expected = new Set();
+      const expected = [ ];
       const actual = await rewired_github.fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
@@ -164,7 +164,7 @@ describe('github', function() {
           },
         },
       });
-      const expected = new Set();
+      const expected = [ ];
       const actual = await rewired_github.fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
@@ -181,7 +181,7 @@ describe('github', function() {
           },
         },
       });
-      const expected = new Set([ 'super/mario/64' ]);
+      const expected = [ 'super/mario/64' ];
       const actual = await rewired_github.fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
@@ -198,7 +198,7 @@ describe('github', function() {
           },
         },
       });
-      const expected = new Set([ 'team:super_marios' ]);
+      const expected = [ 'team:super_marios' ];
       const actual = await rewired_github.fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
@@ -219,7 +219,7 @@ describe('github', function() {
           },
         },
       });
-      const expected = new Set([ 'bowser', 'peach', 'luigi', 'team:super_marios', 'team:toads' ]);
+      const expected = [ 'bowser', 'peach', 'luigi', 'team:super_marios', 'team:toads' ];
       const actual = await rewired_github.fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
@@ -243,7 +243,7 @@ describe('github', function() {
           },
         },
       });
-      const expected = new Set([ 'bowser' ]);
+      const expected = [ 'bowser' ];
       const actual = await rewired_github.fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
@@ -272,7 +272,7 @@ describe('github', function() {
           },
         },
       });
-      const expected = new Set([ 'bowser', 'peach', 'luigi', 'team:super_marios', 'team:toads', 'mario' ]);
+      const expected = [ 'bowser', 'peach', 'luigi', 'team:super_marios', 'team:toads', 'mario' ];
       const actual = await rewired_github.fetch_reviewers();
       expect(actual).to.deep.equal(expected);
     });
