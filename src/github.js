@@ -151,7 +151,6 @@ async function fetch_reviewers() {
 
   const eventNodes = response?.repository?.pullRequest?.timelineItems?.nodes || [];
   eventNodes.forEach((timelineEvent) => {
-    core.info(JSON.stringify(timelineEvent));
     if (timelineEvent?.requestedReviewer?.slug) {
       reviewers.add('team:'.concat(timelineEvent.requestedReviewer.slug));
     } else if (timelineEvent?.requestedReviewer?.login) {
