@@ -17544,7 +17544,7 @@ async function assign_reviewers(reviewers) {
     }).catch((error) => core.error(`Individual ${login} failed to be added with error: ${error}`)));
   });
 
-  return Promise.all(request_review_responses);
+  return Promise.allSettled(request_review_responses);
 }
 
 /* Private */
