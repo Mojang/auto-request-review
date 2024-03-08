@@ -17541,7 +17541,7 @@ async function assign_reviewers(reviewers) {
       repo: context.repo.repo,
       pull_number: context.payload.pull_request.number,
       reviewers: [ login ],
-    }).catch((error) => core.error(`Individual ${login} failed to be added with error: ${error}`)));
+    }).catch((error) => core.error(`Individual: ${login} failed to be added with error: ${error}`)));
   });
 
   return Promise.allSettled(request_review_responses);
