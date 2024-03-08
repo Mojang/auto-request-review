@@ -17531,7 +17531,7 @@ async function assign_reviewers(reviewers) {
       owner: context.repo.owner,
       repo: context.repo.repo,
       pull_number: context.payload.pull_request.number,
-      team_reviewers: [ ...team ],
+      team_reviewers: team,
     }).catch((error) => core.error(`Team: ${team} failed to be added with error: ${error}`)));
   });
 
@@ -17544,7 +17544,6 @@ async function assign_reviewers(reviewers) {
     }).catch((error) => core.error(`Individual ${login} failed to be added with error: ${error}`)));
   });
 
-  core.info(JSON.stringify(request_review_responses));
   return Promise.all(request_review_responses);
 }
 
