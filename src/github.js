@@ -176,7 +176,7 @@ async function assign_reviewers(reviewers) {
   // We therefore make each call individually so that we add all reviewers that are collaborators,
   // and log failure for aliases that no longer have access.
   teams.forEach((team) => {
-    request_review_responses.add(octokit.pulls.requestReviewers({
+    request_review_responses.push(octokit.pulls.requestReviewers({
       owner: context.repo.owner,
       repo: context.repo.repo,
       pull_number: context.payload.pull_request.number,
@@ -186,7 +186,7 @@ async function assign_reviewers(reviewers) {
   });
 
   individuals.forEach((login) => {
-    request_review_responses.add(octokit.pulls.requestReviewers({
+    request_review_responses.push(octokit.pulls.requestReviewers({
       owner: context.repo.owner,
       repo: context.repo.repo,
       pull_number: context.payload.pull_request.number,
