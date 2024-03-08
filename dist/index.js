@@ -17522,6 +17522,8 @@ async function assign_reviewers(reviewers) {
   const request_review_responses = [];
 
   // Github's requestReviewers API will fail to add all reviewers if any of the aliases are not collaborators.
+  // Github also does not support a batch call to determine which aliases in the list are not collaborators.
+
   // We therefore make each call individually so that we add all reviewers that are collaborators,
   // and log failure for aliases that no longer have access.
   teams.forEach((team) => {
@@ -17543,8 +17545,7 @@ async function assign_reviewers(reviewers) {
   });
 
   core.info(JSON.stringify(request_review_responses));
-
-  return request_review_responses;
+  return Promise.all(request_review_responses);
 }
 
 /* Private */
@@ -17688,7 +17689,7 @@ async function run() {
 
   if (reviewers.length > 0) {
     core.info(`Requesting review to ${reviewers.join(', ')}`);
-    await Promise.all(github.assign_reviewers(reviewers));
+    await github.assign_reviewers(reviewers);
   } else {
     core.info('No new reviewers to assign to PR');
   }

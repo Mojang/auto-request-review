@@ -80,7 +80,7 @@ async function run() {
 
   if (reviewers.length > 0) {
     core.info(`Requesting review to ${reviewers.join(', ')}`);
-    await Promise.all(github.assign_reviewers(reviewers));
+    await github.assign_reviewers(reviewers);
   } else {
     core.info('No new reviewers to assign to PR');
   }
