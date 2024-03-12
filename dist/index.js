@@ -17519,13 +17519,32 @@ async function assign_reviewers(reviewers) {
   const [ teams_with_prefix, individuals ] = partition(reviewers, (reviewer) => reviewer.startsWith('team:'));
   const teams = teams_with_prefix.map((team_with_prefix) => team_with_prefix.replace('team:', ''));
 
-  return octokit.pulls.requestReviewers({
-    owner: context.repo.owner,
-    repo: context.repo.repo,
-    pull_number: context.payload.pull_request.number,
-    reviewers: individuals,
-    team_reviewers: teams,
+  const request_review_responses = [];
+
+  // Github's requestReviewers API will fail to add all reviewers if any of the aliases are not collaborators.
+  // Github also does not support a batch call to determine which aliases in the list are not collaborators.
+
+  // We therefore make each call individually so that we add all reviewers that are collaborators,
+  // and log failure for aliases that no longer have access.
+  teams.forEach((team) => {
+    request_review_responses.push(octokit.pulls.requestReviewers({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      pull_number: context.payload.pull_request.number,
+      team_reviewers: [ team ],
+    }).catch((error) => core.error(`Team: ${team} failed to be added with error: ${error}`)));
   });
+
+  individuals.forEach((login) => {
+    request_review_responses.push(octokit.pulls.requestReviewers({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      pull_number: context.payload.pull_request.number,
+      reviewers: [ login ],
+    }).catch((error) => core.error(`Individual: ${login} failed to be added with error: ${error}`)));
+  });
+
+  return Promise.allSettled(request_review_responses);
 }
 
 /* Private */

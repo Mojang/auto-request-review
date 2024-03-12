@@ -279,10 +279,10 @@ describe('github', function() {
   });
 
   describe('assign_reviewers()', function() {
-    const spy = sinon.spy();
+    const stub = sinon.stub();
     const octokit = {
       pulls: {
-        requestReviewers: spy,
+        requestReviewers: stub,
       },
     };
 
@@ -291,24 +291,144 @@ describe('github', function() {
       restoreModule = rewired_github.__set__('octokit_cache', octokit);
     });
     afterEach(function() {
+      stub.reset();
       restoreModule();
     });
 
-    it('assigns reviewers', async function() {
+    it('assigns reviewers - mixed success', async function() {
+      stub.onFirstCall().resolves({});
+      stub.onSecondCall().resolves({});
+      stub.onThirdCall().resolves({});
+
       const reviewers = [ 'mario', 'princess-peach', 'team:koopa-troop' ];
       await rewired_github.assign_reviewers(reviewers);
 
-      expect(spy.calledOnce).to.be.true;
-      expect(spy.lastCall.args[0]).to.deep.equal({
+      expect(stub.calledThrice).to.be.true;
+      expect(stub.firstCall.args[0]).to.deep.equal({
+        owner: 'necojackarc',
+        pull_number: 18,
+        repo: 'auto-request-review',
+        team_reviewers: [
+          'koopa-troop',
+        ],
+      });
+
+      expect(stub.secondCall.args[0]).to.deep.equal({
         owner: 'necojackarc',
         pull_number: 18,
         repo: 'auto-request-review',
         reviewers: [
           'mario',
+        ],
+      });
+
+      expect(stub.thirdCall.args[0]).to.deep.equal({
+        owner: 'necojackarc',
+        pull_number: 18,
+        repo: 'auto-request-review',
+        reviewers: [
           'princess-peach',
         ],
+      });
+    });
+
+    it('assigns reviewers - continues after failure individual', async function() {
+      stub.onFirstCall().resolves({});
+      let isResolved = false;
+      let isRejected = false;
+      const error = new Error('Alias is not a collaborator');
+      const failedNetworkCall = Promise.reject(error).then(
+        function(value) {
+          isResolved = true; return value;
+        },
+        function(error) {
+          isRejected = true; throw error;
+        }
+      );
+      stub.onSecondCall().returns(failedNetworkCall);
+      stub.onThirdCall().resolves({});
+
+      const reviewers = [ 'team:super_marios', 'princess-peach', 'luigi' ];
+      await rewired_github.assign_reviewers(reviewers);
+
+      expect(stub.calledThrice).to.be.true;
+      expect(stub.firstCall.args[0]).to.deep.equal({
+        owner: 'necojackarc',
+        pull_number: 18,
+        repo: 'auto-request-review',
+        team_reviewers: [
+          'super_marios',
+        ],
+      });
+
+      expect(stub.secondCall.args[0]).to.deep.equal({
+        owner: 'necojackarc',
+        pull_number: 18,
+        repo: 'auto-request-review',
+        reviewers: [
+          'princess-peach',
+        ],
+      });
+      expect(isRejected).to.be.true;
+      expect(isResolved).to.be.false;
+
+      expect(stub.thirdCall.args[0]).to.deep.equal({
+        owner: 'necojackarc',
+        pull_number: 18,
+        repo: 'auto-request-review',
+        reviewers: [
+          'luigi',
+        ],
+      });
+    });
+
+    it('assigns reviewers - continues after failure team', async function() {
+      let isResolved = false;
+      let isRejected = false;
+      const error = new Error('Alias is not a collaborator');
+      const failedNetworkCall = Promise.reject(error).then(
+        function(value) {
+          isResolved = true; return value;
+        },
+        function(error) {
+          isRejected = true; throw error;
+        }
+      );
+      stub.onFirstCall().returns(failedNetworkCall);
+      stub.onSecondCall().resolves({});
+      stub.onThirdCall().resolves({});
+
+      const reviewers = [ 'team:toads', 'team:koopa-troop', 'mario' ];
+      await rewired_github.assign_reviewers(reviewers);
+
+      expect(stub.calledThrice).to.be.true;
+
+      expect(stub.firstCall.args[0]).to.deep.equal({
+        owner: 'necojackarc',
+        pull_number: 18,
+        repo: 'auto-request-review',
+        team_reviewers: [
+          'toads',
+        ],
+      });
+      expect(isRejected).to.be.true;
+      expect(isResolved).to.be.false;
+
+      expect(stub.secondCall.args[0]).to.deep.equal({
+        owner: 'necojackarc',
+        pull_number: 18,
+        repo: 'auto-request-review',
         team_reviewers: [
           'koopa-troop',
+        ],
+      });
+
+      expect(stub.thirdCall.args[0]).to.deep.equal({
+        owner: 'necojackarc',
+        pull_number: 18,
+        repo: 'auto-request-review',
+        reviewers: [
+          'mario',
         ],
       });
     });
