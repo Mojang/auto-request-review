@@ -17530,7 +17530,7 @@ async function filter_only_collaborators(reviewers) {
     }).then(function(response) {
       core.info(JSON.stringify(response));
       return team;
-    }));
+    }).catch((error) => core.error(`Team: ${team} failed to be added with error: ${error}`)));
   });
 
   individuals.forEach((alias) => {
@@ -17541,7 +17541,7 @@ async function filter_only_collaborators(reviewers) {
     }).then(function(response) {
       core.info(JSON.stringify(response));
       return alias;
-    }));
+    }).catch((error) => core.error(`Individual: ${alias} failed to be added with error: ${error}`)));
   });
 
   await Promise.allSettled(collaborator_responses);
@@ -17705,7 +17705,7 @@ async function run() {
   // reviewers = reviewers.filter((reviewer) => !requested_approved_reviewers.includes(reviewer));
 
   core.info(`Possible New Reviewers ${reviewers.join(', ')}, prepare to filter to only collaborators`);
-  reviewers = github.filter_only_collaborators(reviewers);
+  reviewers = await github.filter_only_collaborators(reviewers);
 
   core.info('Randomly picking reviewers if the number of reviewers is set');
   reviewers = randomly_pick_reviewers({ reviewers, config });

@@ -181,7 +181,7 @@ async function filter_only_collaborators(reviewers) {
     }).then(function(response) {
       core.info(JSON.stringify(response));
       return team;
-    }));
+    }).catch((error) => core.error(`Team: ${team} failed to be added with error: ${error}`)));
   });
 
   individuals.forEach((alias) => {
@@ -192,7 +192,7 @@ async function filter_only_collaborators(reviewers) {
     }).then(function(response) {
       core.info(JSON.stringify(response));
       return alias;
-    }));
+    }).catch((error) => core.error(`Individual: ${alias} failed to be added with error: ${error}`)));
   });
 
   await Promise.allSettled(collaborator_responses);
