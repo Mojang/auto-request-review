@@ -163,6 +163,45 @@ async function fetch_reviewers() {
   return [ ...reviewers ];
 }
 
+async function filter_only_collaborators(reviewers) {
+  const context = get_context();
+  const octokit = get_octokit();
+
+  const [ teams_with_prefix, individuals ] = partition(reviewers, (reviewer) => reviewer.startsWith('team:'));
+  const teams = teams_with_prefix.map((team_with_prefix) => team_with_prefix.replace('team:', ''));
+
+  const collaborator_responses = [];
+
+  teams.forEach((team) => {
+    collaborator_responses.push(octokit.teams.checkPermissionsForRepoInOrg({
+      org: context.repo.owner,
+      team_slug: team,
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+    }).then(function(response) {
+      core.info(JSON.stringify(response));
+      return team;
+    }));
+  });
+
+  individuals.forEach((alias) => {
+    collaborator_responses.push(octokit.repos.checkCollaborator({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      username: alias,
+    }).then(function(response) {
+      core.info(JSON.stringify(response));
+      return alias;
+    }));
+  });
+
+  await Promise.allSettled(collaborator_responses);
+
+  core.info(`Filtered list of collabs ${collaborator_responses.join(', ')}`);
+
+  return [ ];
+}
+
 async function assign_reviewers(reviewers) {
   const context = get_context();
   const octokit = get_octokit();
@@ -227,6 +266,7 @@ module.exports = {
   fetch_config,
   fetch_changed_files,
   fetch_reviewers,
+  filter_only_collaborators,
   assign_reviewers,
   clear_cache,
 };
