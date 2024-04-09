@@ -178,7 +178,7 @@ async function filter_only_collaborators(reviewers) {
       team_slug: team,
       owner: context.repo.owner,
       repo: context.repo.repo,
-    }).then(function(response) {
+    }).then((response) => {
       core.info(JSON.stringify(response));
       return team;
     }).catch((error) => core.error(`Team: ${team} failed to be added with error: ${error}`)));
@@ -189,13 +189,18 @@ async function filter_only_collaborators(reviewers) {
       owner: context.repo.owner,
       repo: context.repo.repo,
       username: alias,
-    }).then(function(response) {
+    }).then((response) => {
       core.info(JSON.stringify(response));
       return alias;
     }).catch((error) => core.error(`Individual: ${alias} failed to be added with error: ${error}`)));
   });
 
-  await Promise.allSettled(collaborator_responses);
+  await Promise.allSettled(collaborator_responses).then((results) => {
+    results.forEach((result) => {
+      core.info(`foreach: ${result}`)
+      core.info(`foreach: ${JSON.stringify(result)}`)
+    });
+  });
 
   core.info(`Filtered list of collabs ${collaborator_responses.join(', ')}`);
 
