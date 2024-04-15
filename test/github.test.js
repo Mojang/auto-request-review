@@ -278,6 +278,131 @@ describe('github', function() {
     });
   });
 
+  describe('filter_only_collaborators()', function() {
+    const teamStub = sinon.stub();
+    const aliasStub = sinon.stub();
+    const octokit = {
+      repos: {
+        checkCollaborator: aliasStub,
+      },
+      teams: {
+        checkPermissionsForRepoInOrg: teamStub,
+      },
+    };
+
+    let restoreModule;
+    beforeEach(function() {
+      restoreModule = rewired_github.__set__('octokit_cache', octokit);
+    });
+    afterEach(function() {
+      teamStub.reset();
+      aliasStub.reset();
+      restoreModule();
+    });
+
+    it('remove non collaborators - individual', async function() {
+      const allCandidates = [ 'bowser', 'peach', 'luigi', 'mario' ];
+
+      aliasStub.withArgs({
+        owner: 'necojackarc',
+        repo: 'auto-request-review',
+        username: 'bowser',
+      }).rejects();
+      aliasStub.withArgs({
+        owner: 'necojackarc',
+        repo: 'auto-request-review',
+        username: 'peach',
+      }).resolves({ status: '204' });
+      aliasStub.withArgs({
+        owner: 'necojackarc',
+        repo: 'auto-request-review',
+        username: 'luigi',
+      }).rejects();
+      aliasStub.withArgs({
+        owner: 'necojackarc',
+        repo: 'auto-request-review',
+        username: 'mario',
+      }).resolves({ status: '204' });
+
+      const actual = await rewired_github.filter_only_collaborators(allCandidates);
+      expect(actual).to.deep.equal([ 'peach', 'mario' ]);
+      expect(teamStub.called).to.be.false;
+      expect(aliasStub.callCount).to.be.equal(4);
+    });
+
+    it('remove non collaborators - teams', async function() {
+      const allCandidates = [ 'team:koopa-troop', 'team:toads', 'team:peach-alliance', 'team:bowser-and-co' ];
+
+      teamStub.withArgs({
+        org: 'necojackarc',
+        team_slug: 'koopa-troop',
+        owner: 'necojackarc',
+        repo: 'auto-request-review',
+      }).resolves({ status: '204' });
+      teamStub.withArgs({
+        org: 'necojackarc',
+        team_slug: 'toads',
+        owner: 'necojackarc',
+        repo: 'auto-request-review',
+      }).rejects();
+      teamStub.withArgs({
+        org: 'necojackarc',
+        team_slug: 'peach-alliance',
+        owner: 'necojackarc',
+        repo: 'auto-request-review',
+      }).rejects();
+      teamStub.withArgs({
+        org: 'necojackarc',
+        team_slug: 'bowser-and-co',
+        owner: 'necojackarc',
+        repo: 'auto-request-review',
+      }).resolves({ status: '204' });
+
+      const actual = await rewired_github.filter_only_collaborators(allCandidates);
+      expect(actual).to.deep.equal([ 'team:koopa-troop', 'team:bowser-and-co' ]);
+      expect(teamStub.callCount).to.be.equal(4);
+      expect(aliasStub.called).to.be.false;
+    });
+
+    it('remove non collaborators - mixed', async function() {
+      const allCandidates = [ 'peach', 'team:peach-alliance', 'luigi', 'mario', 'team:bowser-and-co' ];
+
+      aliasStub.withArgs({
+        owner: 'necojackarc',
+        repo: 'auto-request-review',
+        username: 'peach',
+      }).resolves({ status: '204' });
+      aliasStub.withArgs({
+        owner: 'necojackarc',
+        repo: 'auto-request-review',
+        username: 'luigi',
+      }).rejects();
+      aliasStub.withArgs({
+        owner: 'necojackarc',
+        repo: 'auto-request-review',
+        username: 'mario',
+      }).rejects();
+
+      teamStub.withArgs({
+        org: 'necojackarc',
+        team_slug: 'peach-alliance',
+        owner: 'necojackarc',
+        repo: 'auto-request-review',
+      }).resolves({ status: '204' });
+      teamStub.withArgs({
+        org: 'necojackarc',
+        team_slug: 'bowser-and-co',
+        owner: 'necojackarc',
+        repo: 'auto-request-review',
+      }).rejects();
+
+      const actual = await rewired_github.filter_only_collaborators(allCandidates);
+      expect(actual).to.deep.equal([ 'peach', 'team:peach-alliance' ]);
+      expect(teamStub.callCount).to.be.equal(2);
+      expect(aliasStub.callCount).to.be.equal(3);
+    });
+  });
+
   describe('assign_reviewers()', function() {
     const spy = sinon.spy();
     const octokit = {

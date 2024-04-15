@@ -15,6 +15,7 @@ describe('index', function() {
       sinon.stub(github, 'fetch_config');
       sinon.stub(github, 'fetch_changed_files');
       sinon.stub(github, 'fetch_reviewers');
+      sinon.stub(github, 'filter_only_collaborators');
       sinon.stub(github, 'assign_reviewers');
     });
 
@@ -23,6 +24,7 @@ describe('index', function() {
       github.fetch_config.restore();
       github.fetch_changed_files.restore();
       github.fetch_reviewers.restore();
+      github.filter_only_collaborators.restore();
       github.assign_reviewers.restore();
     });
 
@@ -53,6 +55,8 @@ describe('index', function() {
 
       const current_reviewers = [];
       github.fetch_reviewers.returns(current_reviewers);
+
+      github.filter_only_collaborators.returnsArg(0);
 
       await run();
 
@@ -88,6 +92,8 @@ describe('index', function() {
       const current_reviewers = [ 'princess-peach' ];
       github.fetch_reviewers.returns(current_reviewers);
 
+      github.filter_only_collaborators.returnsArg(0);
+
       await run();
 
       expect(github.assign_reviewers.calledOnce).to.be.true;
@@ -122,13 +128,15 @@ describe('index', function() {
       const current_reviewers = [ 'team:bowser-and-co' ];
       github.fetch_reviewers.returns(current_reviewers);
 
+      github.filter_only_collaborators.returnsArg(0);
+
       await run();
 
       expect(github.assign_reviewers.calledOnce).to.be.true;
       expect(github.assign_reviewers.lastCall.args[0]).to.have.members([ 'mario', 'team:peach-alliance', 'wario', 'waluigi' ]);
     });
 
-    it('skips caling assign if no reviewers', async function() {
+    it('skips calling assign if no reviewers', async function() {
       const config = {
         reviewers: {
           defaults: [ 'dr-mario' ],
@@ -156,9 +164,131 @@ describe('index', function() {
       const current_reviewers = [ 'princess-peach', 'mario' ];
       github.fetch_reviewers.returns(current_reviewers);
 
+      github.filter_only_collaborators.returnsArg(0);
+
       await run();
 
       expect(github.assign_reviewers.calledOnce).to.be.false;
+    });
+
+    it('removes non collaborators - individual', async function() {
+      const config = {
+        reviewers: {
+          defaults: [ 'dr-mario' ],
+          groups: {
+            'mario-brothers': [ 'mario', 'luigi' ],
+          },
+        },
+        files: {
+          '**/*.js': [ 'mario-brothers', 'princess-peach' ],
+          '**/*.rb': [ 'wario', 'waluigi' ],
+        },
+      };
+      github.fetch_config.returns(config);
+
+      const pull_request = {
+        title: 'Nice Pull Request',
+        is_draft: false,
+        author: 'luigi',
+      };
+      github.get_pull_request.returns(pull_request);
+
+      const changed_files = [ 'path/to/file.js' ];
+      github.fetch_changed_files.returns(changed_files);
+
+      const current_reviewers = [ ];
+      github.fetch_reviewers.returns(current_reviewers);
+
+      const collaborators = [ 'mario' ];
+      github.filter_only_collaborators.returns(collaborators);
+
+      await run();
+
+      expect(github.filter_only_collaborators.calledOnce).to.be.true;
+      expect(github.filter_only_collaborators.lastCall.args[0]).to.have.members([ 'mario', 'princess-peach' ]);
+
+      expect(github.assign_reviewers.calledOnce).to.be.true;
+      expect(github.assign_reviewers.lastCall.args[0]).to.have.members([ 'mario' ]);
+    });
+
+    it('removes non collaborators - team', async function() {
+      const config = {
+        reviewers: {
+          defaults: [ 'dr-mario' ],
+          groups: {
+            'mario-brothers': [ 'mario', 'luigi' ],
+          },
+        },
+        files: {
+          '**/*.js': [ 'mario-brothers', 'team:peach-alliance' ],
+          '**/*.rb': [ 'wario', 'waluigi', 'team:bowser-and-co' ],
+        },
+      };
+      github.fetch_config.returns(config);
+
+      const pull_request = {
+        title: 'Nice Pull Request',
+        is_draft: false,
+        author: 'luigi',
+      };
+      github.get_pull_request.returns(pull_request);
+
+      const changed_files = [ 'path/to/file.js', 'path/to/file.rb' ];
+      github.fetch_changed_files.returns(changed_files);
+
+      const current_reviewers = [ ];
+      github.fetch_reviewers.returns(current_reviewers);
+
+      const collaborators = [ 'team:peach-alliance' ];
+      github.filter_only_collaborators.returns(collaborators);
+
+      await run();
+
+      expect(github.filter_only_collaborators.calledOnce).to.be.true;
+      expect(github.filter_only_collaborators.lastCall.args[0]).to.have.members([ 'mario', 'team:peach-alliance', 'wario', 'waluigi', 'team:bowser-and-co' ]);
+
+      expect(github.assign_reviewers.calledOnce).to.be.true;
+      expect(github.assign_reviewers.lastCall.args[0]).to.have.members([ 'team:peach-alliance' ]);
+    });
+
+    it('removes non collaborators + previous review mix', async function() {
+      const config = {
+        reviewers: {
+          defaults: [ 'dr-mario' ],
+          groups: {
+            'mario-brothers': [ 'mario', 'luigi' ],
+          },
+        },
+        files: {
+          '**/*.js': [ 'mario-brothers', 'team:peach-alliance' ],
+          '**/*.rb': [ 'wario', 'waluigi', 'team:bowser-and-co' ],
+        },
+      };
+      github.fetch_config.returns(config);
+
+      const pull_request = {
+        title: 'Nice Pull Request',
+        is_draft: false,
+        author: 'luigi',
+      };
+      github.get_pull_request.returns(pull_request);
+
+      const changed_files = [ 'path/to/file.js', 'path/to/file.rb' ];
+      github.fetch_changed_files.returns(changed_files);
+
+      const current_reviewers = [ 'waluigi', 'team:peach-alliance' ];
+      github.fetch_reviewers.returns(current_reviewers);
+
+      const collaborators = [ 'mario', 'team:bowser-and-co' ];
+      github.filter_only_collaborators.returns(collaborators);
+
+      await run();
+
+      expect(github.filter_only_collaborators.calledOnce).to.be.true;
+      expect(github.filter_only_collaborators.lastCall.args[0]).to.have.members([ 'mario', 'wario', 'team:bowser-and-co' ]);
+
+      expect(github.assign_reviewers.calledOnce).to.be.true;
+      expect(github.assign_reviewers.lastCall.args[0]).to.have.members([ 'mario', 'team:bowser-and-co' ]);
     });
 
     it('requests review based on groups that author belongs to', async function() {
@@ -188,6 +318,8 @@ describe('index', function() {
 
       const current_reviewers = [];
       github.fetch_reviewers.returns(current_reviewers);
+
+      github.filter_only_collaborators.returnsArg(0);
 
       await run();
 
@@ -248,6 +380,8 @@ describe('index', function() {
       const current_reviewers = [];
       github.fetch_reviewers.returns(current_reviewers);
 
+      github.filter_only_collaborators.returnsArg(0);
+
       await run();
 
       expect(github.assign_reviewers.calledOnce).to.be.false;
@@ -279,6 +413,8 @@ describe('index', function() {
 
       const current_reviewers = [];
       github.fetch_reviewers.returns(current_reviewers);
+
+      github.filter_only_collaborators.returnsArg(0);
 
       await run();
 
@@ -312,6 +448,8 @@ describe('index', function() {
 
       const current_reviewers = [];
       github.fetch_reviewers.returns(current_reviewers);
+
+      github.filter_only_collaborators.returnsArg(0);
 
       await run();
 
@@ -347,6 +485,8 @@ describe('index', function() {
       const current_reviewers = [];
       github.fetch_reviewers.returns(current_reviewers);
 
+      github.filter_only_collaborators.returnsArg(0);
+
       await run();
 
       expect(github.assign_reviewers.calledOnce).to.be.true;
@@ -381,6 +521,8 @@ describe('index', function() {
       const current_reviewers = [];
       github.fetch_reviewers.returns(current_reviewers);
 
+      github.filter_only_collaborators.returnsArg(0);
+
       await run();
 
       expect(github.assign_reviewers.calledOnce).to.be.true;
@@ -412,6 +554,8 @@ describe('index', function() {
 
       const current_reviewers = [];
       github.fetch_reviewers.returns(current_reviewers);
+
+      github.filter_only_collaborators.returnsArg(0);
 
       await run();
 
