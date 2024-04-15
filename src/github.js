@@ -170,8 +170,9 @@ async function filter_only_collaborators(reviewers) {
   const [ teams_with_prefix, individuals ] = partition(reviewers, (reviewer) => reviewer.startsWith('team:'));
   const teams = teams_with_prefix.map((team_with_prefix) => team_with_prefix.replace('team:', ''));
 
+  // Create a list of requests for all available aliases to see if they have permission to the
+  // PR associated with this action
   const collaborator_responses = [];
-
   teams.forEach((team) => {
     collaborator_responses.push(octokit.teams.checkPermissionsForRepoInOrg({
       org: context.repo.owner,
@@ -179,31 +180,38 @@ async function filter_only_collaborators(reviewers) {
       owner: context.repo.owner,
       repo: context.repo.repo,
     }).then((response) => {
-      core.info(JSON.stringify(response));
-      return team;
+      // https://docs.github.com/en/rest/collaborators/collaborators?apiVersion=2022-11-28#check-if-a-user-is-a-repository-collaborator
+      // Its expected that a collaborator with permission will return 204
+      core.info(`Received successful status code ${response?.status ?? 'Unknown'} for team: ${team}`);
+      return 'team:'.concat(team);
     }).catch((error) => core.error(`Team: ${team} failed to be added with error: ${error}`)));
   });
-
   individuals.forEach((alias) => {
     collaborator_responses.push(octokit.repos.checkCollaborator({
       owner: context.repo.owner,
       repo: context.repo.repo,
       username: alias,
     }).then((response) => {
-      core.info(JSON.stringify(response));
+      // https://docs.github.com/en/rest/teams/teams?apiVersion=2022-11-28#check-team-permissions-for-a-repository
+      // Its expected that a team with permission will return 204
+      core.info(`Received successful status code ${response?.status ?? 'Unknown'} for alias: ${alias}`);
       return alias;
     }).catch((error) => core.error(`Individual: ${alias} failed to be added with error: ${error}`)));
   });
 
+  // Store the aliases and teams of all successful responses
+  const collaborators = [];
   await Promise.allSettled(collaborator_responses).then((results) => {
     results.forEach((result) => {
-      core.info(`foreach: ${result}`)
-      core.info(`foreach: ${JSON.stringify(result)}`)
+      if (result?.value) {
+        collaborators.push(result?.value);
+      }
     });
   });
 
-  core.info(`Filtered list of collabs ${collaborator_responses.join(', ')}`);
-
+  // Only include aliases and teams that exist as collaborators
+  const filtered_reviewers = reviewers.filter((reviewer) => collaborators.includes(reviewer));
+  core.info(`Filtered list of only collaborators ${filtered_reviewers.join(', ')}`);
   return [ ];
 }
 
