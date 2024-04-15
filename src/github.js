@@ -212,7 +212,7 @@ async function filter_only_collaborators(reviewers) {
   // Only include aliases and teams that exist as collaborators
   const filtered_reviewers = reviewers.filter((reviewer) => collaborators.includes(reviewer));
   core.info(`Filtered list of only collaborators ${filtered_reviewers.join(', ')}`);
-  return [ ];
+  return filtered_reviewers;
 }
 
 async function assign_reviewers(reviewers) {
