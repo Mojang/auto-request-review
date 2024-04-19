@@ -17512,6 +17512,58 @@ async function fetch_reviewers() {
   return [ ...reviewers ];
 }
 
+async function filter_only_collaborators(reviewers) {
+  const context = get_context();
+  const octokit = get_octokit();
+
+  const [ teams_with_prefix, individuals ] = partition(reviewers, (reviewer) => reviewer.startsWith('team:'));
+  const teams = teams_with_prefix.map((team_with_prefix) => team_with_prefix.replace('team:', ''));
+
+  // Create a list of requests for all available aliases and teams to see if they have permission
+  // to the PR associated with this action
+  const collaborator_responses = [];
+  teams.forEach((team) => {
+    collaborator_responses.push(octokit.teams.checkPermissionsForRepoInOrg({
+      org: context.repo.owner,
+      team_slug: team,
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+    }).then((response) => {
+      // https://docs.github.com/en/rest/teams/teams?apiVersion=2022-11-28#check-team-permissions-for-a-repository
+      // Its expected that a team with permission will return 204
+      core.info(`Received successful status code ${response?.status ?? 'Unknown'} for team: ${team}`);
+      return 'team:'.concat(team);
+    }).catch((error) => core.error(`Team: ${team} failed to be added with error: ${error}`)));
+  });
+  individuals.forEach((alias) => {
+    collaborator_responses.push(octokit.repos.checkCollaborator({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      username: alias,
+    }).then((response) => {
+      // https://docs.github.com/en/rest/collaborators/collaborators?apiVersion=2022-11-28#check-if-a-user-is-a-repository-collaborator
+      // Its expected that a collaborator with permission will return 204
+      core.info(`Received successful status code ${response?.status ?? 'Unknown'} for alias: ${alias}`);
+      return alias;
+    }).catch((error) => core.error(`Individual: ${alias} failed to be added with error: ${error}`)));
+  });
+
+  // Store the aliases and teams of all successful responses
+  const collaborators = [];
+  await Promise.allSettled(collaborator_responses).then((results) => {
+    results.forEach((result) => {
+      if (result?.value) {
+        collaborators.push(result?.value);
+      }
+    });
+  });
+
+  // Only include aliases and teams that exist as collaborators
+  const filtered_reviewers = reviewers.filter((reviewer) => collaborators.includes(reviewer));
+  core.info(`Filtered list of only collaborators ${filtered_reviewers.join(', ')}`);
+  return filtered_reviewers;
+}
+
 async function assign_reviewers(reviewers) {
   const context = get_context();
   const octokit = get_octokit();
@@ -17519,32 +17571,13 @@ async function assign_reviewers(reviewers) {
   const [ teams_with_prefix, individuals ] = partition(reviewers, (reviewer) => reviewer.startsWith('team:'));
   const teams = teams_with_prefix.map((team_with_prefix) => team_with_prefix.replace('team:', ''));
 
-  const request_review_responses = [];
-
-  // Github's requestReviewers API will fail to add all reviewers if any of the aliases are not collaborators.
-  // Github also does not support a batch call to determine which aliases in the list are not collaborators.
-
-  // We therefore make each call individually so that we add all reviewers that are collaborators,
-  // and log failure for aliases that no longer have access.
-  teams.forEach((team) => {
-    request_review_responses.push(octokit.pulls.requestReviewers({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      pull_number: context.payload.pull_request.number,
-      team_reviewers: [ team ],
-    }).catch((error) => core.error(`Team: ${team} failed to be added with error: ${error}`)));
+  return octokit.pulls.requestReviewers({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    pull_number: context.payload.pull_request.number,
+    reviewers: individuals,
+    team_reviewers: teams,
   });
-
-  individuals.forEach((login) => {
-    request_review_responses.push(octokit.pulls.requestReviewers({
-      owner: context.repo.owner,
-      repo: context.repo.repo,
-      pull_number: context.payload.pull_request.number,
-      reviewers: [ login ],
-    }).catch((error) => core.error(`Individual: ${login} failed to be added with error: ${error}`)));
-  });
-
-  return Promise.allSettled(request_review_responses);
 }
 
 /* Private */
@@ -17595,6 +17628,7 @@ module.exports = {
   fetch_config,
   fetch_changed_files,
   fetch_reviewers,
+  filter_only_collaborators,
   assign_reviewers,
   clear_cache,
 };
@@ -17682,6 +17716,9 @@ async function run() {
 
   core.info(`Possible Reviewers ${reviewers.join(', ')}, prepare filtering out already requested reviewers or approved reviewers`);
   reviewers = reviewers.filter((reviewer) => !requested_approved_reviewers.includes(reviewer));
+
+  core.info(`Possible New Reviewers ${reviewers.join(', ')}, prepare to filter to only collaborators`);
+  reviewers = await github.filter_only_collaborators(reviewers);
 
   core.info('Randomly picking reviewers if the number of reviewers is set');
   reviewers = randomly_pick_reviewers({ reviewers, config });

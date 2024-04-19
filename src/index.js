@@ -75,6 +75,9 @@ async function run() {
   core.info(`Possible Reviewers ${reviewers.join(', ')}, prepare filtering out already requested reviewers or approved reviewers`);
   reviewers = reviewers.filter((reviewer) => !requested_approved_reviewers.includes(reviewer));
 
+  core.info(`Possible New Reviewers ${reviewers.join(', ')}, prepare to filter to only collaborators`);
+  reviewers = await github.filter_only_collaborators(reviewers);
+
   core.info('Randomly picking reviewers if the number of reviewers is set');
   reviewers = randomly_pick_reviewers({ reviewers, config });
 
