@@ -12,6 +12,9 @@ inputs:
   use_local:
     required: false
     default: 'false'
+  validate_all:
+    required: false
+    default: 'false'
 runs:
   using: 'node20'
   main: 'dist/index.js'
