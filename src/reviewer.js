@@ -136,6 +136,17 @@ function randomly_pick_reviewers({ reviewers, config }) {
   return sample_size(reviewers, number_of_reviewers);
 }
 
+function fetch_all_reviewers(config) {
+  // Pulls all potential reviewers (defaults, based on author, based on files)
+  const default_reviewers = config?.reviewers?.defaults ?? [];
+  const reviewers_based_on_author = Object.values(config?.reviewers?.per_author ?? {}).flat();
+  const reviewers_based_on_files = Object.values(config?.files ?? {}).flat();
+
+  // Replaces the group names with real reviewers
+  const reviewers = [ ...default_reviewers, ...reviewers_based_on_author, ...reviewers_based_on_files ];
+  return [ ...new Set(replace_groups_with_individuals({ reviewers: reviewers, config })) ];
+}
+
 /* Private */
 
 function replace_groups_with_individuals({ reviewers, config }) {
@@ -152,4 +163,5 @@ module.exports = {
   should_request_review,
   fetch_default_reviewers,
   randomly_pick_reviewers,
+  fetch_all_reviewers,
 };
