@@ -7,6 +7,7 @@ const {
   should_request_review,
   fetch_default_reviewers,
   randomly_pick_reviewers,
+  fetch_all_reviewers,
 } = require('../src/reviewer');
 const { expect } = require('chai');
 
@@ -359,6 +360,83 @@ describe('reviewer', function() {
         },
       };
       expect(randomly_pick_reviewers({ reviewers, config })).to.have.members([ 'dr-mario', 'mario', 'luigi' ]);
+    });
+  });
+
+  describe('fetch_all_reviewers()', function() {
+    it('fetches the default reviewers', function() {
+      const config = {
+        reviewers: {
+          defaults: [ 'dr-mario', 'mario-brothers' ],
+          groups: {
+            'mario-brothers': [ 'mario', 'luigi' ],
+          },
+        },
+      };
+      expect(fetch_all_reviewers(config)).to.have.members([ 'dr-mario', 'mario', 'luigi' ]);
+    });
+
+    it('fetches the per author reviewers', function() {
+      const config = {
+        reviewers: {
+          groups: {
+            engineers: [ 'mario', 'luigi', 'wario', 'waluigi' ],
+            designers: [ 'mario', 'princess-peach', 'princess-daisy' ],
+          },
+          per_author: {
+            engineers: [ 'engineers', 'dr-mario' ],
+            designers: [ 'designers' ],
+            yoshi: [ 'mario', 'luige' ],
+          },
+        },
+      };
+      expect(fetch_all_reviewers(config)).to.have.members([ 'mario', 'luigi', 'wario', 'waluigi', 'dr-mario', 'princess-peach', 'princess-daisy', 'luige' ]);
+    });
+
+    it('fetches the files reviewers', function() {
+      const config = {
+        reviewers: {
+          groups: {
+            'backend-engineers': [ 'mario', 'luigi', 'wario', 'waluigi' ],
+            'frontend-engineers': [ 'princess-peach' ],
+          },
+        },
+        files: {
+          '**/super-star': [ 'mario', 'luigi' ],
+          'backend/**/*': [ 'backend-engineers' ],
+          'backend/**/some-specific-file': [ 'mario', 'someone-specific' ],
+          'frontend/**/*': [ 'frontend-engineers', 'toad' ],
+        },
+      };
+      expect(fetch_all_reviewers(config)).to.have.members([ 'mario', 'luigi', 'wario', 'waluigi', 'someone-specific', 'princess-peach', 'toad' ]);
+    });
+
+    it('fetches all reviewers', function() {
+      const config = {
+        reviewers: {
+          defaults: [ 'dr-mario', 'mario-brothers', 'paper-mario' ],
+          groups: {
+            'mario-brothers': [ 'mario', 'luigi', 'star' ],
+            'engineers': [ 'mario', 'luigi', 'wario', 'waluigi' ],
+            'designers': [ 'mario', 'princess-peach', 'princess-daisy' ],
+            'backend-engineers': [ 'mario', 'luigi', 'wario', 'waluigi' ],
+            'frontend-engineers': [ 'princess-peach' ],
+          },
+          per_author: {
+            engineers: [ 'engineers', 'dr-mario' ],
+            designers: [ 'designers' ],
+            yoshi: [ 'mario', 'luige' ],
+          },
+        },
+        files: {
+          '**/super-star': [ 'mario', 'luigi' ],
+          'backend/**/*': [ 'backend-engineers' ],
+          'backend/**/some-specific-file': [ 'mario', 'someone-specific' ],
+          'frontend/**/*': [ 'frontend-engineers', 'toad' ],
+        },
+      };
+      const expected = [ 'dr-mario', 'mario', 'luigi', 'star', 'paper-mario', 'wario', 'waluigi', 'princess-peach', 'princess-daisy', 'luige', 'someone-specific', 'toad' ];
+      expect(fetch_all_reviewers(config)).to.have.members(expected);
     });
   });
 });
