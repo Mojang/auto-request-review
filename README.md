@@ -279,6 +279,6 @@ If the action is re-run post an administrator giving access to the aliases, or t
 from the config yaml file, the action will update the comment to notify that all issues have been resolved.
 
 ```
-All alias issues have been resolved!
+All reviewer issues have been resolved!
 Comment added by Auto Reviewer Robot 🤖: <Base64 Unique ID>
 ```
