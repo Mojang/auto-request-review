@@ -113,7 +113,7 @@ async function run() {
     core.info('No new reviewers to assign to PR');
   }
 
-  // If we either have reviewers without access OR this action has previously created a comment, 
+  // If we either have reviewers without access OR this action has previously created a comment,
   // trigger updating our comment with the latest information.
   const existing_comment = await github.get_existing_comment();
   if (aliases_missing_access.length > 0 || existing_comment) {

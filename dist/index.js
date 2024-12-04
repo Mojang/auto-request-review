@@ -17512,12 +17512,19 @@ async function fetch_reviewers() {
   return [ ...reviewers ];
 }
 
+function split_reviewers(reviewers) {
+  // Splits the list of reviewers into a list of individual aliases and a list of team aliases (team prefix removed)
+  const [ teams_with_prefix, individuals ] = partition(reviewers, (reviewer) => reviewer.startsWith('team:'));
+  const teams = teams_with_prefix.map((team_with_prefix) => team_with_prefix.replace('team:', ''));
+
+  return [ individuals, teams ];
+}
+
 async function filter_only_collaborators(reviewers) {
   const context = get_context();
   const octokit = get_octokit();
 
-  const [ teams_with_prefix, individuals ] = partition(reviewers, (reviewer) => reviewer.startsWith('team:'));
-  const teams = teams_with_prefix.map((team_with_prefix) => team_with_prefix.replace('team:', ''));
+  const [ individuals, teams ] = split_reviewers(reviewers);
 
   // Create a list of requests for all available aliases and teams to see if they have permission
   // to the PR associated with this action
@@ -17558,18 +17565,20 @@ async function filter_only_collaborators(reviewers) {
     });
   });
 
-  // Only include aliases and teams that exist as collaborators
+  // Create two lists to notify the caller about the reviewer level of access
+  // 1) Only include aliases and teams that exist as collaborators
+  // 2) Only includes aliases that failed to pass the permission check
   const filtered_reviewers = reviewers.filter((reviewer) => collaborators.includes(reviewer));
+  const no_access_reviewers = reviewers.filter((reviewer) => !collaborators.includes(reviewer));
   core.info(`Filtered list of only collaborators ${filtered_reviewers.join(', ')}`);
-  return filtered_reviewers;
+  return [ filtered_reviewers, no_access_reviewers ];
 }
 
 async function assign_reviewers(reviewers) {
   const context = get_context();
   const octokit = get_octokit();
 
-  const [ teams_with_prefix, individuals ] = partition(reviewers, (reviewer) => reviewer.startsWith('team:'));
-  const teams = teams_with_prefix.map((team_with_prefix) => team_with_prefix.replace('team:', ''));
+  const [ individuals, teams ] = split_reviewers(reviewers);
 
   return octokit.pulls.requestReviewers({
     owner: context.repo.owner,
@@ -17578,6 +17587,104 @@ async function assign_reviewers(reviewers) {
     reviewers: individuals,
     team_reviewers: teams,
   });
+}
+
+function getCommentFooter() {
+  // Returns a unique to the pull request id used to identify the action's comment
+  const context = get_context();
+  const commentKey = Buffer.from(`${context.repo.repo}-${context.payload.pull_request.number}`).toString('base64');
+  return `Comment added by Auto Reviewer Robot 🤖: ${commentKey}`;
+}
+
+async function get_existing_comment() {
+  const context = get_context();
+  const octokit = get_octokit();
+
+  const response = await octokit.issues.listComments({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    issue_number: context.payload.pull_request.number,
+  });
+
+  const robotFooter = getCommentFooter();
+  const commentList = response?.data || [];
+
+  // Search for a comment with our footer. If more that one exists, select the first
+  // one returned but log an error for debugging (includes links to each matched comment)
+  const robotComments = commentList.filter((comment) => (comment.body ?? '').includes(robotFooter));
+  if (robotComments.length > 1) {
+    const commentsInfo = robotComments.map((comment) => comment.html_url);
+    core.error(`Found more than one comment from the action. picking the first: ${JSON.stringify(commentsInfo)}`);
+  }
+
+  return robotComments.shift();
+}
+
+function get_missing_access_message(reviewers) {
+  let message = 'The following reviewers did not have access to be added as reviewers, please review their access:\n';
+
+  // Split aliases based on team vs individual
+  const [ individuals, teams ] = split_reviewers(reviewers);
+  if (individuals.length) {
+    message += '### *Individual Alias*\n';
+    individuals.forEach((alias) => {
+      message += `- ${alias}\n`;
+    });
+  }
+
+  if (teams.length) {
+    message += '### *Team Alias*\n';
+    teams.forEach((alias) => {
+      message += `- ${alias}\n`;
+    });
+  }
+
+  message += `\n${getCommentFooter()}`;
+
+  return message;
+}
+
+async function post_notification(reviewers, comment) {
+  const context = get_context();
+  const octokit = get_octokit();
+
+  if (reviewers.length) {
+    // If we have a list of reviewers without access, prepare a message
+    // with the reviewers.
+    const message = get_missing_access_message();
+
+    // If the action has already created a comment, only update the comment
+    // if the list of reviewers has changed.
+    if (comment?.id) {
+      if (message.localeCompare(comment?.body)) {
+        await octokit.issues.updateComment({
+          owner: context.repo.owner,
+          repo: context.repo.repo,
+          comment_id: comment?.id,
+          body: message,
+        });
+      }
+
+      return;
+    }
+
+    // If there exists no comment, create one.
+    await octokit.issues.createComment({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      issue_number: context.payload.pull_request.number,
+      body: message,
+    });
+  } else if (comment?.id) {
+    // If we no longer have any access issues with our aliases but we have
+    // commented before, lets notify the author that all issues are fixed.
+    await octokit.issues.updateComment({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      comment_id: comment?.id,
+      body: `All reviewer issues have been resolved!\n${getCommentFooter()}`,
+    });
+  }
 }
 
 /* Private */
@@ -17630,6 +17737,8 @@ module.exports = {
   fetch_reviewers,
   filter_only_collaborators,
   assign_reviewers,
+  get_existing_comment,
+  post_notification,
   clear_cache,
 };
 
@@ -17653,7 +17762,14 @@ const {
   should_request_review,
   fetch_default_reviewers,
   randomly_pick_reviewers,
+  fetch_all_reviewers,
 } = __nccwpck_require__(5089);
+
+// Helper for checking the state of the action parameter to validate all reviewers.
+let validate_all_reviewers_cache;
+function get_validate_all_reviewers() {
+  return validate_all_reviewers_cache ?? (validate_all_reviewers_cache = core.getInput('validate_all') === 'true');
+}
 
 async function run() {
   core.info('Fetching configuration file from the source branch');
@@ -17718,7 +17834,25 @@ async function run() {
   reviewers = reviewers.filter((reviewer) => !requested_approved_reviewers.includes(reviewer));
 
   core.info(`Possible New Reviewers ${reviewers.join(', ')}, prepare to filter to only collaborators`);
-  reviewers = await github.filter_only_collaborators(reviewers);
+  let aliases_missing_access;
+  [ reviewers, aliases_missing_access ] = await github.filter_only_collaborators(reviewers);
+
+  // Note the following logic is to run only when the "validate_all" parameter is set (usually set when the reviewers config file
+  // has changed in PR and the user of the action wants to validate the PR is not adding any aliases without access to the repo).
+  // This section could arguably be its own action. Since both a lot of the same github access / building blocks / apis are used
+  // in the same way as the above add reviewers logic and github doesn't have a good way to produce multiple independent actions
+  // in the same repository, the current compromise is to keep this part of the action as an optional validation.
+  if (get_validate_all_reviewers()) {
+    core.info('Action ran in validate all mode, retrieving all possible reviewers inside config file');
+    let all_reviewers = fetch_all_reviewers(config);
+
+    // Make sure we only check access for aliases we have not already checked above.
+    all_reviewers = all_reviewers.filter((reviewer) => !reviewers.includes(reviewer) && !aliases_missing_access.includes(reviewer));
+
+    core.info(`All possible reviewers: ${all_reviewers.join(', ')}`);
+    const [ , additional_missing_access ] = await github.filter_only_collaborators(all_reviewers);
+    aliases_missing_access = [ ...aliases_missing_access, ...additional_missing_access ];
+  }
 
   core.info('Randomly picking reviewers if the number of reviewers is set');
   reviewers = randomly_pick_reviewers({ reviewers, config });
@@ -17728,6 +17862,14 @@ async function run() {
     await github.assign_reviewers(reviewers);
   } else {
     core.info('No new reviewers to assign to PR');
+  }
+
+  // If we either have reviewers without access OR this action has previously created a comment,
+  // trigger updating our comment with the latest information.
+  const existing_comment = await github.get_existing_comment();
+  if (aliases_missing_access.length > 0 || existing_comment) {
+    core.info('Found reviewers without access, preparing to add notification to PR');
+    await github.post_notification(aliases_missing_access, existing_comment);
   }
 }
 
@@ -17885,6 +18027,17 @@ function randomly_pick_reviewers({ reviewers, config }) {
   return sample_size(reviewers, number_of_reviewers);
 }
 
+function fetch_all_reviewers(config) {
+  // Pulls all potential reviewers (defaults, based on author, based on files)
+  const default_reviewers = config?.reviewers?.defaults ?? [];
+  const reviewers_based_on_author = Object.values(config?.reviewers?.per_author ?? {}).flat();
+  const reviewers_based_on_files = Object.values(config?.files ?? {}).flat();
+
+  // Replaces the group names with real reviewers
+  const reviewers = [ ...default_reviewers, ...reviewers_based_on_author, ...reviewers_based_on_files ];
+  return [ ...new Set(replace_groups_with_individuals({ reviewers: reviewers, config })) ];
+}
+
 /* Private */
 
 function replace_groups_with_individuals({ reviewers, config }) {
@@ -17901,6 +18054,7 @@ module.exports = {
   should_request_review,
   fetch_default_reviewers,
   randomly_pick_reviewers,
+  fetch_all_reviewers,
 };
 
 

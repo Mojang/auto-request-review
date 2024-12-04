@@ -260,7 +260,7 @@ async function get_existing_comment() {
   const robotFooter = getCommentFooter();
   const commentList = response?.data || [];
 
-  // Search for a comment with our footer. If more that one exists, select the first 
+  // Search for a comment with our footer. If more that one exists, select the first
   // one returned but log an error for debugging (includes links to each matched comment)
   const robotComments = commentList.filter((comment) => (comment.body ?? '').includes(robotFooter));
   if (robotComments.length > 1) {
@@ -302,7 +302,7 @@ async function post_notification(reviewers, comment) {
   if (reviewers.length) {
     // If we have a list of reviewers without access, prepare a message
     // with the reviewers.
-    let message = get_missing_access_message();
+    const message = get_missing_access_message();
 
     // If the action has already created a comment, only update the comment
     // if the list of reviewers has changed.
