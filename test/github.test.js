@@ -278,6 +278,29 @@ describe('github', function() {
     });
   });
 
+  describe('split_reviewers()', function() {
+    it('empty list', function() {
+      const [ individuals, teams ] = rewired_github.split_reviewers([]);
+
+      expect(individuals).to.deep.equal([]);
+      expect(teams).to.deep.equal([]);
+    });
+
+    it('only individuals', function() {
+      const [ individuals, teams ] = rewired_github.split_reviewers([ 'mario', 'luigi' ]);
+
+      expect(individuals).to.deep.equal([ 'mario', 'luigi' ]);
+      expect(teams).to.deep.equal([]);
+    });
+
+    it('only teams', function() {
+      const [ individuals, teams ] = rewired_github.split_reviewers([ 'team:super_marios', 'team:toads' ]);
+
+      expect(individuals).to.deep.equal([]);
+      expect(teams).to.deep.equal([ 'super_marios', 'toads' ]);
+    });
+  });
+
   describe('filter_only_collaborators()', function() {
     const teamStub = sinon.stub();
     const aliasStub = sinon.stub();
@@ -325,7 +348,7 @@ describe('github', function() {
       }).resolves({ status: '204' });
 
       const actual = await rewired_github.filter_only_collaborators(allCandidates);
-      expect(actual).to.deep.equal([ 'peach', 'mario' ]);
+      expect(actual).to.deep.equal([ [ 'peach', 'mario' ], [ 'bowser', 'luigi' ] ]);
       expect(teamStub.called).to.be.false;
       expect(aliasStub.callCount).to.be.equal(4);
     });
@@ -359,7 +382,7 @@ describe('github', function() {
       }).resolves({ status: '204' });
 
       const actual = await rewired_github.filter_only_collaborators(allCandidates);
-      expect(actual).to.deep.equal([ 'team:koopa-troop', 'team:bowser-and-co' ]);
+      expect(actual).to.deep.equal([ [ 'team:koopa-troop', 'team:bowser-and-co' ], [ 'team:toads', 'team:peach-alliance' ] ]);
       expect(teamStub.callCount).to.be.equal(4);
       expect(aliasStub.called).to.be.false;
     });
@@ -397,7 +420,7 @@ describe('github', function() {
       }).rejects();
 
       const actual = await rewired_github.filter_only_collaborators(allCandidates);
-      expect(actual).to.deep.equal([ 'peach', 'team:peach-alliance' ]);
+      expect(actual).to.deep.equal([ [ 'peach', 'team:peach-alliance' ], [ 'luigi', 'mario', 'team:bowser-and-co' ] ]);
       expect(teamStub.callCount).to.be.equal(2);
       expect(aliasStub.callCount).to.be.equal(3);
     });
@@ -436,6 +459,300 @@ describe('github', function() {
           'koopa-troop',
         ],
       });
+    });
+  });
+
+  describe('get_comment_footer()', function() {
+    it('uses pull request context', function() {
+      const footer = rewired_github.get_comment_footer();
+
+      const expectedId = Buffer.from('auto-request-review-18').toString('base64');
+      expect(footer).to.include(expectedId);
+    });
+  });
+
+  describe('get_existing_comment()', function() {
+    const commentStub = sinon.stub();
+    const octokit = {
+      issues: {
+        listComments: commentStub,
+      },
+    };
+
+    let restoreModule;
+    beforeEach(function() {
+      restoreModule = rewired_github.__set__('octokit_cache', octokit);
+    });
+    afterEach(function() {
+      commentStub.reset();
+      restoreModule();
+    });
+
+    it('Empty Response', async function() {
+      const comment = await rewired_github.get_existing_comment();
+      expect(comment).to.equal(undefined);
+      expect(commentStub.callCount).to.be.equal(1);
+    });
+
+    it('No Robot Comments', async function() {
+      commentStub.withArgs({
+        owner: 'necojackarc',
+        repo: 'auto-request-review',
+        issue_number: 18,
+      }).returns({
+        data: [
+          { body: 'Thank you for making this change Mario.' },
+          { body: 'Your princess is in another castle.' },
+        ],
+      });
+
+      const comment = await rewired_github.get_existing_comment();
+      expect(comment).to.equal(undefined);
+      expect(commentStub.callCount).to.be.equal(1);
+    });
+
+    it('Single Robot Comment', async function() {
+      const robotComment = {
+        body: `Missing Reviewers ${rewired_github.get_comment_footer()}`,
+      };
+
+      commentStub.withArgs({
+        owner: 'necojackarc',
+        repo: 'auto-request-review',
+        issue_number: 18,
+      }).returns({
+        data: [
+          { body: 'Thank you for making this change Mario.' },
+          { body: 'Your princess is in another castle.' },
+          robotComment,
+        ],
+      });
+
+      const comment = await rewired_github.get_existing_comment();
+      expect(comment).to.equal(robotComment);
+      expect(commentStub.callCount).to.be.equal(1);
+    });
+
+    it('Multiple Robot Comment', async function() {
+      const robotComment = {
+        body: `Missing Reviewers ${rewired_github.get_comment_footer()}`,
+      };
+      const secondComment = {
+        body: `Second Comment ${rewired_github.get_comment_footer()}`,
+      };
+
+      commentStub.withArgs({
+        owner: 'necojackarc',
+        repo: 'auto-request-review',
+        issue_number: 18,
+      }).returns({
+        data: [
+          { body: 'Thank you for making this change Mario.' },
+          robotComment,
+          { body: 'Your princess is in another castle.' },
+          secondComment,
+        ],
+      });
+
+      const comment = await rewired_github.get_existing_comment();
+      expect(comment).to.equal(robotComment);
+      expect(commentStub.callCount).to.be.equal(1);
+    });
+  });
+
+  describe('get_missing_access_message()', function() {
+    it('individuals only', function() {
+      const reviewers = [ 'bowser', 'peach', 'luigi', 'mario' ];
+      const message = rewired_github.get_missing_access_message(reviewers);
+      const footer = rewired_github.get_comment_footer();
+
+      // Message should always contain footer
+      expect(message).to.include(footer);
+
+      // Should not include appropriate headers
+      expect(message).to.not.include('Team Alias');
+      expect(message).to.include('Individual Alias');
+
+      // Message should contain every reviewer
+      reviewers.forEach((reviewer) => {
+        expect(message).to.include(reviewer);
+      });
+    });
+
+    it('teams only', function() {
+      const reviewers = [ 'team:koopa-troop', 'team:toads', 'team:peach-alliance', 'team:bowser-and-co' ];
+      const message = rewired_github.get_missing_access_message(reviewers);
+      const footer = rewired_github.get_comment_footer();
+
+      // Message should always contain footer
+      expect(message).to.include(footer);
+
+      // Should not include appropriate headers
+      expect(message).to.include('Team Alias');
+      expect(message).to.not.include('Individual Alias');
+
+      // Message should contain every reviewer
+      reviewers.map((reviewer) => reviewer.replace('team:', '')).forEach((reviewer) => {
+        expect(message).to.include(reviewer);
+      });
+    });
+
+    it('mixed', function() {
+      const reviewers = [ 'peach', 'team:peach-alliance', 'luigi', 'mario', 'team:bowser-and-co' ];
+      const message = rewired_github.get_missing_access_message(reviewers);
+      const footer = rewired_github.get_comment_footer();
+
+      // Message should always contain footer
+      expect(message).to.include(footer);
+
+      // Should not include appropriate headers
+      expect(message).to.include('Team Alias');
+      expect(message).to.include('Individual Alias');
+
+      // Message should contain every reviewer
+      reviewers.map((reviewer) => reviewer.replace('team:', '')).forEach((reviewer) => {
+        expect(message).to.include(reviewer);
+      });
+    });
+  });
+
+  describe('post_notification()', function() {
+    const createStub = sinon.stub();
+    const updateStub = sinon.stub();
+    const octokit = {
+      issues: {
+        createComment: createStub,
+        updateComment: updateStub,
+      },
+    };
+
+    let restoreModule;
+    beforeEach(function() {
+      restoreModule = rewired_github.__set__('octokit_cache', octokit);
+    });
+    afterEach(function() {
+      createStub.reset();
+      updateStub.reset();
+      restoreModule();
+    });
+
+    it('empty reviewers and commment', async function() {
+      await rewired_github.post_notification([], undefined);
+
+      expect(createStub.callCount).to.be.equal(0);
+      expect(updateStub.callCount).to.be.equal(0);
+    });
+
+    it('New Missing Reviewers, no comment', async function() {
+      const reviewers = [ 'peach', 'team:peach-alliance', 'luigi', 'mario', 'team:bowser-and-co' ];
+      const expectedMessage = rewired_github.get_missing_access_message(reviewers);
+
+      await rewired_github.post_notification(reviewers, undefined);
+
+      expect(createStub.callCount).to.be.equal(1);
+      expect(createStub.lastCall.args[0]).to.deep.equal({
+        owner: 'necojackarc',
+        repo: 'auto-request-review',
+        issue_number: 18,
+        body: expectedMessage,
+      });
+
+      expect(updateStub.callCount).to.be.equal(0);
+    });
+
+    it('Existing missing reviewers in comment', async function() {
+      const reviewers = [ 'peach', 'team:peach-alliance', 'luigi', 'mario', 'team:bowser-and-co' ];
+      const expectedMessage = rewired_github.get_missing_access_message(reviewers);
+      const comment = {
+        id: 123,
+        body: expectedMessage,
+      };
+
+      await rewired_github.post_notification(reviewers, comment);
+
+      expect(createStub.callCount).to.be.equal(0);
+      expect(updateStub.callCount).to.be.equal(0);
+    });
+
+    it('New Reviewers from original comment', async function() {
+      const reviewers = [ 'peach', 'team:peach-alliance', 'luigi', 'mario', 'team:bowser-and-co' ];
+      const commentMessage = rewired_github.get_missing_access_message([ ...reviewers, 'toad' ]);
+      const expectedMessage = rewired_github.get_missing_access_message(reviewers);
+      const comment = {
+        id: 123,
+        body: commentMessage,
+      };
+
+      await rewired_github.post_notification(reviewers, comment);
+
+      expect(createStub.callCount).to.be.equal(0);
+      expect(updateStub.callCount).to.be.equal(1);
+      expect(updateStub.lastCall.args[0]).to.deep.equal({
+        owner: 'necojackarc',
+        repo: 'auto-request-review',
+        comment_id: comment.id,
+        body: expectedMessage,
+      });
+    });
+
+    it('Closes old  comment', async function() {
+      const reviewers = [ 'peach', 'team:peach-alliance', 'luigi', 'mario', 'team:bowser-and-co' ];
+      const commentMessage = rewired_github.get_missing_access_message(reviewers);
+
+      const comment = {
+        id: 123,
+        body: commentMessage,
+      };
+
+      await rewired_github.post_notification([], comment);
+
+      expect(createStub.callCount).to.be.equal(0);
+
+      expect(updateStub.callCount).to.be.equal(1);
+      expect(updateStub.lastCall.args[0].owner).to.deep.equal('necojackarc');
+      expect(updateStub.lastCall.args[0].repo).to.deep.equal('auto-request-review');
+      expect(updateStub.lastCall.args[0].comment_id).to.deep.equal(comment.id);
+
+      const messageBody = updateStub.lastCall.args[0].body;
+      expect(messageBody).to.include(rewired_github.get_comment_footer());
+      reviewers.forEach((reviewer) => {
+        expect(messageBody).to.not.include(reviewer);
+      });
+    });
+
+    it('Malformed Comment - Creates New One', async function() {
+      const reviewers = [ 'peach', 'team:peach-alliance', 'luigi', 'mario', 'team:bowser-and-co' ];
+      const expectedMessage = rewired_github.get_missing_access_message(reviewers);
+
+      // Comment schema has been changed
+      const comment = {
+        schema: 123,
+        message: expectedMessage,
+      };
+
+      await rewired_github.post_notification(reviewers, comment);
+
+      expect(createStub.callCount).to.be.equal(1);
+      expect(createStub.lastCall.args[0]).to.deep.equal({
+        owner: 'necojackarc',
+        repo: 'auto-request-review',
+        issue_number: 18,
+        body: expectedMessage,
+      });
+
+      expect(updateStub.callCount).to.be.equal(0);
+    });
+
+    it('Malformed Comment - no reviews, skips editing', async function() {
+      // Comment schema has been changed
+      const comment = {
+        schema: 123,
+        message: 'This is a robot comment',
+      };
+      await rewired_github.post_notification([], comment);
+
+      expect(createStub.callCount).to.be.equal(0);
+      expect(updateStub.callCount).to.be.equal(0);
     });
   });
 });
