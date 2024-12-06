@@ -17589,7 +17589,7 @@ async function assign_reviewers(reviewers) {
   });
 }
 
-function getCommentFooter() {
+function get_comment_footer() {
   // Returns a unique to the pull request id used to identify the action's comment
   const context = get_context();
   const commentKey = Buffer.from(`${context.repo.repo}-${context.payload.pull_request.number}`).toString('base64');
@@ -17606,7 +17606,7 @@ async function get_existing_comment() {
     issue_number: context.payload.pull_request.number,
   });
 
-  const robotFooter = getCommentFooter();
+  const robotFooter = get_comment_footer();
   const commentList = response?.data || [];
 
   // Search for a comment with our footer. If more that one exists, select the first
@@ -17639,7 +17639,7 @@ function get_missing_access_message(reviewers) {
     });
   }
 
-  message += `\n${getCommentFooter()}`;
+  message += `\n${get_comment_footer()}`;
 
   return message;
 }
@@ -17651,7 +17651,7 @@ async function post_notification(reviewers, comment) {
   if (reviewers.length) {
     // If we have a list of reviewers without access, prepare a message
     // with the reviewers.
-    const message = get_missing_access_message();
+    const message = get_missing_access_message(reviewers);
 
     // If the action has already created a comment, only update the comment
     // if the list of reviewers has changed.
@@ -17682,7 +17682,7 @@ async function post_notification(reviewers, comment) {
       owner: context.repo.owner,
       repo: context.repo.repo,
       comment_id: comment?.id,
-      body: `All reviewer issues have been resolved!\n${getCommentFooter()}`,
+      body: `All reviewer issues have been resolved!\n${get_comment_footer()}`,
     });
   }
 }
@@ -17735,9 +17735,12 @@ module.exports = {
   fetch_config,
   fetch_changed_files,
   fetch_reviewers,
+  split_reviewers,
   filter_only_collaborators,
   assign_reviewers,
+  get_comment_footer,
   get_existing_comment,
+  get_missing_access_message,
   post_notification,
   clear_cache,
 };
@@ -17769,6 +17772,10 @@ const {
 let validate_all_reviewers_cache;
 function get_validate_all_reviewers() {
   return validate_all_reviewers_cache ?? (validate_all_reviewers_cache = core.getInput('validate_all') === 'true');
+}
+
+function clear_cache() {
+  validate_all_reviewers_cache = undefined;
 }
 
 async function run() {
@@ -17874,6 +17881,7 @@ async function run() {
 }
 
 module.exports = {
+  clear_cache,
   run,
 };
 

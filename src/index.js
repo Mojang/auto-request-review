@@ -20,6 +20,10 @@ function get_validate_all_reviewers() {
   return validate_all_reviewers_cache ?? (validate_all_reviewers_cache = core.getInput('validate_all') === 'true');
 }
 
+function clear_cache() {
+  validate_all_reviewers_cache = undefined;
+}
+
 async function run() {
   core.info('Fetching configuration file from the source branch');
 
@@ -123,6 +127,7 @@ async function run() {
 }
 
 module.exports = {
+  clear_cache,
   run,
 };
 
