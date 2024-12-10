@@ -163,12 +163,19 @@ async function fetch_reviewers() {
   return [ ...reviewers ];
 }
 
+function split_reviewers(reviewers) {
+  // Splits the list of reviewers into a list of individual aliases and a list of team aliases (team prefix removed)
+  const [ teams_with_prefix, individuals ] = partition(reviewers, (reviewer) => reviewer.startsWith('team:'));
+  const teams = teams_with_prefix.map((team_with_prefix) => team_with_prefix.replace('team:', ''));
+
+  return [ individuals, teams ];
+}
+
 async function filter_only_collaborators(reviewers) {
   const context = get_context();
   const octokit = get_octokit();
 
-  const [ teams_with_prefix, individuals ] = partition(reviewers, (reviewer) => reviewer.startsWith('team:'));
-  const teams = teams_with_prefix.map((team_with_prefix) => team_with_prefix.replace('team:', ''));
+  const [ individuals, teams ] = split_reviewers(reviewers);
 
   // Create a list of requests for all available aliases and teams to see if they have permission
   // to the PR associated with this action
@@ -209,18 +216,20 @@ async function filter_only_collaborators(reviewers) {
     });
   });
 
-  // Only include aliases and teams that exist as collaborators
+  // Create two lists to notify the caller about the reviewer level of access
+  // 1) Only include aliases and teams that exist as collaborators
+  // 2) Only includes aliases that failed to pass the permission check
   const filtered_reviewers = reviewers.filter((reviewer) => collaborators.includes(reviewer));
+  const no_access_reviewers = reviewers.filter((reviewer) => !collaborators.includes(reviewer));
   core.info(`Filtered list of only collaborators ${filtered_reviewers.join(', ')}`);
-  return filtered_reviewers;
+  return [ filtered_reviewers, no_access_reviewers ];
 }
 
 async function assign_reviewers(reviewers) {
   const context = get_context();
   const octokit = get_octokit();
 
-  const [ teams_with_prefix, individuals ] = partition(reviewers, (reviewer) => reviewer.startsWith('team:'));
-  const teams = teams_with_prefix.map((team_with_prefix) => team_with_prefix.replace('team:', ''));
+  const [ individuals, teams ] = split_reviewers(reviewers);
 
   return octokit.pulls.requestReviewers({
     owner: context.repo.owner,
@@ -229,6 +238,104 @@ async function assign_reviewers(reviewers) {
     reviewers: individuals,
     team_reviewers: teams,
   });
+}
+
+function get_comment_footer() {
+  // Returns a unique to the pull request id used to identify the action's comment
+  const context = get_context();
+  const commentKey = Buffer.from(`${context.repo.repo}-${context.payload.pull_request.number}`).toString('base64');
+  return `Comment added by Auto Reviewer Robot 🤖: ${commentKey}`;
+}
+
+async function get_existing_comment() {
+  const context = get_context();
+  const octokit = get_octokit();
+
+  const response = await octokit.issues.listComments({
+    owner: context.repo.owner,
+    repo: context.repo.repo,
+    issue_number: context.payload.pull_request.number,
+  });
+
+  const robotFooter = get_comment_footer();
+  const commentList = response?.data || [];
+
+  // Search for a comment with our footer. If more that one exists, select the first
+  // one returned but log an error for debugging (includes links to each matched comment)
+  const robotComments = commentList.filter((comment) => (comment.body ?? '').includes(robotFooter));
+  if (robotComments.length > 1) {
+    const commentsInfo = robotComments.map((comment) => comment.html_url);
+    core.error(`Found more than one comment from the action. picking the first: ${JSON.stringify(commentsInfo)}`);
+  }
+
+  return robotComments.shift();
+}
+
+function get_missing_access_message(reviewers) {
+  let message = 'The following reviewers did not have access to be added as reviewers, please review their access:\n';
+
+  // Split aliases based on team vs individual
+  const [ individuals, teams ] = split_reviewers(reviewers);
+  if (individuals.length) {
+    message += '### *Individual Alias*\n';
+    individuals.forEach((alias) => {
+      message += `- ${alias}\n`;
+    });
+  }
+
+  if (teams.length) {
+    message += '### *Team Alias*\n';
+    teams.forEach((alias) => {
+      message += `- ${alias}\n`;
+    });
+  }
+
+  message += `\n${get_comment_footer()}`;
+
+  return message;
+}
+
+async function post_notification(reviewers, comment) {
+  const context = get_context();
+  const octokit = get_octokit();
+
+  if (reviewers.length) {
+    // If we have a list of reviewers without access, prepare a message
+    // with the reviewers.
+    const message = get_missing_access_message(reviewers);
+
+    // If the action has already created a comment, only update the comment
+    // if the list of reviewers has changed.
+    if (comment?.id) {
+      if (message.localeCompare(comment?.body)) {
+        await octokit.issues.updateComment({
+          owner: context.repo.owner,
+          repo: context.repo.repo,
+          comment_id: comment?.id,
+          body: message,
+        });
+      }
+
+      return;
+    }
+
+    // If there exists no comment, create one.
+    await octokit.issues.createComment({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      issue_number: context.payload.pull_request.number,
+      body: message,
+    });
+  } else if (comment?.id) {
+    // If we no longer have any access issues with our aliases but we have
+    // commented before, lets notify the author that all issues are fixed.
+    await octokit.issues.updateComment({
+      owner: context.repo.owner,
+      repo: context.repo.repo,
+      comment_id: comment?.id,
+      body: `All reviewer issues have been resolved!\n${get_comment_footer()}`,
+    });
+  }
 }
 
 /* Private */
@@ -279,7 +386,12 @@ module.exports = {
   fetch_config,
   fetch_changed_files,
   fetch_reviewers,
+  split_reviewers,
   filter_only_collaborators,
   assign_reviewers,
+  get_comment_footer,
+  get_existing_comment,
+  get_missing_access_message,
+  post_notification,
   clear_cache,
 };

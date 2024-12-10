@@ -209,6 +209,13 @@ jobs:
           # This defaults to false if not specified.
           # See https://github.com/necojackarc/auto-request-review/issues/76 for more details.
           use_local: true
+          # Validates that all reviewers inside the config file (e.g. .github/reviewers.yml specified
+          # above) have access to be added as reviewers to the repository running this yaml. This
+          # can be used similar to native CODEOWNER errors reported by github: 
+          # https://docs.github.com/en/rest/repos/repos?apiVersion=2022-11-28#list-codeowners-errors
+          #
+          # This defaults to false if not specified.
+          validate_all: true
 ```
 
 ### (Optional) GitHub Personal Access Token
@@ -248,3 +255,30 @@ on:
 #### Dependabot compatibility
 
 Note that with the [recent change to GitHub Actions that are created by Dependabot](https://github.blog/changelog/2021-02-19-github-actions-workflows-triggered-by-dependabot-prs-will-run-with-read-only-permissions/), the `pull_request` event will no longer give access to your secrets to this action. Instead you will need to use the `pull_request_target` event. If you do this make sure to read [Keeping your GitHub Actions and workflows secure: Preventing pwn requests](https://securitylab.github.com/research/github-actions-preventing-pwn-requests/) to understand the risks involved.
+
+## Reviewer Access and Private Repos
+
+The reviewer aliases defined in the configurations must have been given access to the repo in order to
+be added as a code reviewer to the pull request. 
+
+If the action attempts to assign a reviewer that does not have access to the repo, a comment will be
+automatically addded to the pull request to notify the author that not everyone was assigned.
+```
+The following reviewers did not have access to be added as reviewers, please review their access:
+
+Individual Alias
+    - jamoor-test-twice
+
+Team Alias
+    - fake-team-super-stale
+
+Comment added by Auto Reviewer Robot 🤖: <Base64 Unique ID>
+```
+
+If the action is re-run post an administrator giving access to the aliases, or the aliases are removed
+from the config yaml file, the action will update the comment to notify that all issues have been resolved.
+
+```
+All reviewer issues have been resolved!
+Comment added by Auto Reviewer Robot 🤖: <Base64 Unique ID>
+```
