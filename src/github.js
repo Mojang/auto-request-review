@@ -165,6 +165,7 @@ async function fetch_reviewers() {
 
 function split_reviewers(reviewers) {
   // Splits the list of reviewers into a list of individual aliases and a list of team aliases (team prefix removed)
+  core.info(`split_reviewers: reviewers length is ${reviewers.length}`);
   const [ teams_with_prefix, individuals ] = partition(reviewers, (reviewer) => reviewer.startsWith('team:'));
   const teams = teams_with_prefix.map((team_with_prefix) => team_with_prefix.replace('team:', ''));
 
