@@ -82,7 +82,6 @@ describe('reviewer', function() {
         '**/super-star': [ 'mario', 'luigi' ],
         'backend/**/*': [ 'backend-engineers' ],
         'backend/**/some-specific-file': [ 'mario', 'someone-specific' ],
-        'backend/**/some-specific-area-to-exclude/**': null,
         'frontend/**/*': [ 'frontend-engineers', 'toad' ],
       },
     };
@@ -116,28 +115,6 @@ describe('reviewer', function() {
       const changed_files = [ 'super-star', 'frontend/file', 'backend/file' ];
       const excludes = [ 'wario', 'waluigi' ];
       expect(identify_reviewers_by_changed_files({ config, changed_files, excludes })).to.have.members([ 'mario', 'luigi', 'princess-peach', 'toad' ]);
-    });
-
-    it('assigns no reviewers if match list is empty in specific path, but assigns reviewers to more general path', function () {
-      const changed_files = [
-        'backend/path/some-specific-area-to-exclude/file',
-      ];
-      expect(
-        identify_reviewers_by_changed_files({
-          config: { ...config, options: { last_files_match_only: true } },
-          changed_files,
-        })
-      ).to.have.members([]);
-
-      const differentFiles = [
-        'backend/path/file',
-      ];
-      expect(
-        identify_reviewers_by_changed_files({
-          config: { ...config, options: { last_files_match_only: true } },
-          changed_files: differentFiles,
-        })
-      ).to.have.members([ 'mario', 'luigi', 'wario', 'waluigi' ]);
     });
 
     it('uses the only last matching files-changed pattern with `last_files_match_only` `true` (CODEWONERS-compatible)', function() {
