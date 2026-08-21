@@ -17949,7 +17949,8 @@ function identify_reviewers_by_changed_files({ config, changed_files, excludes =
 
   const matching_reviewers = {};
 
-  Object.entries(config.files).forEach(([ glob_pattern, reviewers ]) => {
+  Object.entries(config.files).forEach(([ glob_pattern, rawReviewers ]) => {
+    const reviewers = rawReviewers ?? [];
     changed_files.filter((changed_file) => minimatch(changed_file, glob_pattern)).forEach((changed_file) => {
       matching_reviewers[changed_file] = matching_reviewers[changed_file] ?? [];
       if (last_files_match_only) {
@@ -18039,7 +18040,7 @@ function fetch_all_reviewers(config) {
   // Pulls all potential reviewers (defaults, based on author, based on files)
   const default_reviewers = config?.reviewers?.defaults ?? [];
   const reviewers_based_on_author = Object.values(config?.reviewers?.per_author ?? {}).flat();
-  const reviewers_based_on_files = Object.values(config?.files ?? {}).flat();
+  const reviewers_based_on_files = Object.values(config?.files ?? {}).flatMap((reviewers) => reviewers ?? []);
 
   // Replaces the group names with real reviewers
   const reviewers = [ ...default_reviewers, ...reviewers_based_on_author, ...reviewers_based_on_files ];

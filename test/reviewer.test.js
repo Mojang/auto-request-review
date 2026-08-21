@@ -434,6 +434,16 @@ describe('reviewer', function() {
       expect(fetch_all_reviewers(config)).to.have.members([ 'mario', 'luigi', 'wario', 'waluigi', 'someone-specific', 'princess-peach', 'toad' ]);
     });
 
+    it('ignores empty file reviewer lists', function() {
+      const config = {
+        files: {
+          'backend/**/*': [ 'backend-engineers' ],
+          'backend/**/some-specific-area-to-exclude/**': null,
+        },
+      };
+      expect(fetch_all_reviewers(config)).to.have.members([ 'backend-engineers' ]);
+    });
+
     it('fetches all reviewers', function() {
       const config = {
         reviewers: {

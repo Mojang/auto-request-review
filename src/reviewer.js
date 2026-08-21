@@ -141,7 +141,7 @@ function fetch_all_reviewers(config) {
   // Pulls all potential reviewers (defaults, based on author, based on files)
   const default_reviewers = config?.reviewers?.defaults ?? [];
   const reviewers_based_on_author = Object.values(config?.reviewers?.per_author ?? {}).flat();
-  const reviewers_based_on_files = Object.values(config?.files ?? {}).flat();
+  const reviewers_based_on_files = Object.values(config?.files ?? {}).flatMap((reviewers) => reviewers ?? []);
 
   // Replaces the group names with real reviewers
   const reviewers = [ ...default_reviewers, ...reviewers_based_on_author, ...reviewers_based_on_files ];
